@@ -12,8 +12,7 @@
 #define bleServerName "SOULPOT_ESP32_00"
 #define SERVICE_UUID "80b7f088-0084-43e1-a687-8457bcb2dbc8"
 
-#define SSID_ADDR 0
-#define PASS_ADDR 1
+#define EEPROM_ADDR 0
 
 BLECharacteristic batteryLevelChar("8818604d-2616-4977-8d12-57c291e619f9", BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
 BLEDescriptor batteryLevelCharDesc(BLEUUID((uint16_t)0x180F));
@@ -89,16 +88,16 @@ void wifiSetup(std::string ssid, std::string password) {
 void saveConfigEEPROM() {
   Serial.print("Saving credentials to EEPROM...");
   int ssidLen = _ssid.length();
-  EEPROM.write(SSID_ADDR, ssidLen);
+  EEPROM.write(EEPROM_ADDR, ssidLen);
   for (int i = 0; i < ssidLen; i++) {
-    EEPROM.write(SSID_ADDR + 1 + i, _ssid[i]);
+    EEPROM.write(EEPROM_ADDR + 1 + i, _ssid[i]);
   }
 
   int passLen = _password.length();
   int offset = ssidLen + 2;
   EEPROM.write(offset, passLen);
 
-  for (int i = offset + 1; i < passLen; i++) {
+  for (int i = 0; i < passLen; i++) {
     EEPROM.write(offset + 1 + i, _password[i]);
   }
 
@@ -115,12 +114,12 @@ void saveConfigEEPROM() {
 void readConfig() {
   Serial.println("Fetching config saved in EEPROM...");
   // SSID
-  int ssidLen = EEPROM.read(SSID_ADDR);
+  int ssidLen = EEPROM.read(EEPROM_ADDR);
   Serial.print("Size of eeprom ssid:");
   Serial.println(ssidLen);
   char ssid[ssidLen + 1];
   for (int i = 0; i < ssidLen; i++) {
-    ssid[i] = EEPROM.read(SSID_ADDR + 1 + i);
+    ssid[i] = EEPROM.read(EEPROM_ADDR + 1 + i);
   }
   ssid[ssidLen] = '\0';
   Serial.print("SSID EEPROM: ");
