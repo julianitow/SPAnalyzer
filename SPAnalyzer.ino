@@ -3,6 +3,8 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
+#include <WiFi.h>
+
 #include <string>
 
 #include <EEPROM.h>
@@ -17,6 +19,8 @@ BLECharacteristic wifiParamChar("96c44fd5-c309-4553-a11e-b8457810b94c", BLEChara
 BLEDescriptor wifiParamCharDesc("544bd464-8388-42aa-99cd-81cf6e6042d7");
 
 bool deviceConnected = false;
+
+void wifiSetup(std::string, std::string);
 
 //Setup callbacks onConnect and onDisconnect
 class MyServerCallbacks: public BLEServerCallbacks {
@@ -56,12 +60,23 @@ class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
       password += value[i];
     }
 
-    Serial.print("Parsed: ");
-    Serial.print(ssid.c_str());
-    Serial.print(", ");
-    Serial.println(password.c_str());
+    wifiSetup(ssid, password);
   }
 };
+
+void wifiSetup(std::string ssid, std::string password) {
+  Serial.println(ssid.c_str());
+  WiFi.begin(ssid.c_str(), password.c_str());
+  Serial.print("WifiConfig connecting to ");
+  while(WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(500);
+  }
+  Serial.print("Successfully connected to ");
+  Serial.println(ssid.c_str());
+  Serial.print("Local ip: ");
+  Serial.println(WiFi.localIP());
+}
 
 void bluetoothSetup() {
   Serial.println("Configuration mode detected");
