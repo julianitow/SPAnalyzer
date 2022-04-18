@@ -9,7 +9,7 @@
 
 #include <EEPROM.h>
 
-#define bleServerName "SOULPOT_ESP32_00"
+#define deviceName "SOULPOT_ESP32_00"
 #define SERVICE_UUID "80b7f088-0084-43e1-a687-8457bcb2dbc8"
 
 #define EEPROM_ADDR 0
@@ -71,6 +71,7 @@ class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
 void wifiSetup(std::string ssid, std::string password) {
   _ssid = ssid;
   _password = password;
+  WiFi.setHostname(deviceName);
   WiFi.begin(ssid.c_str(), password.c_str());
   Serial.print("WifiConfig connecting to ");
   Serial.println(ssid.c_str());
@@ -135,13 +136,17 @@ void readConfig() {
     password[i] = EEPROM.read(offset + 1 + i);
   }
   password[passLen] = '\0';
+  if (ssidLen > 0 && passLen > 0) {
+    _ssid = ssid;
+    _password = password;
+  }
   Serial.print("PASSWORD EEPROM: ");
   Serial.println(password);
 }
 
 void bluetoothSetup() {
   Serial.println("Configuration mode detected");
-  BLEDevice::init(bleServerName);
+  BLEDevice::init(deviceName);
   BLEServer *pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
   BLEService *bmeService = pServer->createService(SERVICE_UUID);
@@ -161,7 +166,11 @@ void setup() {
   Serial.begin(115200);
   EEPROM.begin(200);
   readConfig();
-  bluetoothSetup();
+  if (_ssid.length() > 0 && _password.length() > 0) {
+    wifiSetup(_ssid, _password);
+  } else {
+    bluetoothSetup();
+  }
 }
 
 void loop() {
