@@ -18,10 +18,10 @@
 #include <az_iot.h>
 #include <azure_ca.h>
 
-// Additional sample headers 
-#include "include/AzIoTSasToken.h"
-#include "include/SerialLogger.h"
-#include "include/iot_configs.h"
+// Additional sample headers #include "inc/AzIoTSasToken.h"
+#include "AzIoTSasToken.h"
+#include "SerialLogger.h"
+#include "iot_configs.h"
 
 // When developing for your own Arduino-based platform,
 // please follow the format '(ard;<platform>)'. 
@@ -63,22 +63,21 @@ static char mqtt_username[128];
 static char mqtt_password[200];
 static uint8_t sas_signature_buffer[256];
 static unsigned long next_data_send_time_ms = 0;
-static const char* analyzer_topic = deviceName;
+static char analyzer_topic[128];
 static uint32_t payload_send_count = 0;
 
 #define INCOMING_DATA_BUFFER_SIZE 128
 static char incoming_data[INCOMING_DATA_BUFFER_SIZE];
+static uint8_t payload[100];
 
 BLECharacteristic wifiParamChar(CHAR_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
 BLEDescriptor wifiParamCharDesc(DESC_UUID);
 
-static AzIoTSasToken sasToken(&client, AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_KEY),AZ_SPAN_FROM_BUFFER(sas_signature_buffer), AZ_SPAN_FROM_BUFFER(mqtt_password));
-
 bool deviceConnected = false;
-
 static std::string _ssid, _password; 
 
 void wifiSetup(std::string, std::string);
+static AzIoTSasToken sasToken(&client, AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_KEY),AZ_SPAN_FROM_BUFFER(sas_signature_buffer), AZ_SPAN_FROM_BUFFER(mqtt_password));
 
 static void initializeTime()
 {
@@ -270,11 +269,11 @@ static void establishConnection()
 class MyServerCallbacks: public BLEServerCallbacks {
   void onConnect(BLEServer* pServer) {
     deviceConnected = true;
-    Serial.println("New client connected");
+    Logger.Info("New client connected");
   };
   void onDisconnect(BLEServer* pServer) {
     deviceConnected = false;
-    Serial.println("Client disconnected");
+    Logger.Warning("Client disconnected");
   }
 };
 
@@ -283,8 +282,8 @@ class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
     Serial.println("onRead triggered");
   }
   void onWrite(BLECharacteristic* pCharacteristic) {
-    Serial.print("received: ");
-    Serial.println(pCharacteristic->getValue().c_str());
+    Logger.Info("received: ");
+    Logger.Info(pCharacteristic->getValue().c_str());
     std::string value = pCharacteristic->getValue();
     int scIndex = 0;
     std::string ssid = "";
@@ -303,7 +302,8 @@ class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
     for(int i = scIndex + 1; i < value.length(); i++) {
       password += value[i];
     }
-
+    _ssid = ssid;
+    _password = password;
     wifiSetup(ssid, password);
   }
 };
@@ -312,22 +312,23 @@ void wifiSetup(std::string ssid, std::string password) {
   _ssid = ssid;
   _password = password;
   WiFi.setHostname(deviceName);
+  WiFi.mode(WIFI_STA);  
   WiFi.begin(ssid.c_str(), password.c_str());
-  Serial.print("WifiConfig connecting to ");
-  Serial.println(ssid.c_str());
+  Logger.Info("WifiConfig connecting to ");
+  Serial.print(ssid.c_str());
   while(WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
     delay(500);
   }
-  Serial.print("Successfully connected to ");
-  Serial.println(ssid.c_str());
-  Serial.print("Local ip: ");
+  Logger.Info("Successfully connected to ");
+  Serial.print(ssid.c_str());
+  Serial.print(" Local ip: ");
   Serial.println(WiFi.localIP());
   saveConfigEEPROM();
 }
 
 void saveConfigEEPROM() {
-  Serial.print("Saving credentials to EEPROM...");
+  Logger.Info("Saving credentials to EEPROM...");
   int ssidLen = _ssid.length();
   EEPROM.write(EEPROM_ADDR, ssidLen);
   for (int i = 0; i < ssidLen; i++) {
@@ -343,42 +344,43 @@ void saveConfigEEPROM() {
   }
 
   if (EEPROM.commit()) {
-    Serial.println("Sucess !");
+    Logger.Debug("Sucess !");
   } else {
-    Serial.println("Failed !");
+    Logger.Error("Failed to save in EEPROM!");
   }
 }
 
 void readConfig() {
-  Serial.println("Fetching config saved in EEPROM...");
+  Logger.Info("Fetching config saved in EEPROM...");
   // SSID
   int ssidLen = EEPROM.read(EEPROM_ADDR);
-  Serial.print("Size of eeprom ssid:");
-  Serial.println(ssidLen);
   char ssid[ssidLen + 1];
   for (int i = 0; i < ssidLen; i++) {
     ssid[i] = EEPROM.read(EEPROM_ADDR + 1 + i);
   }
   ssid[ssidLen] = '\0';
-  Serial.print("SSID EEPROM: ");
-  Serial.println(ssid);
-
+  if (ssidLen > 0) {
+    _ssid = ssid;
+  }
+  Logger.Debug("SSID EEPROM 1, _ssid: ");
+  Logger.Debug(ssid);
+  Logger.Debug(_ssid.c_str());
   //PASSWORD
   int offset = ssidLen + 2;
   int passLen = EEPROM.read(offset);
-  Serial.print("Size of eeprom password:");
-  Serial.println(passLen);
   char password[passLen + 1];
   for (int i = 0; i < offset + passLen; i++) {
     password[i] = EEPROM.read(offset + 1 + i);
   }
   password[passLen] = '\0';
   if (ssidLen > 0 && passLen > 0) {
+    Logger.Debug("SSID EEPROM 2: ");
+    Serial.print(ssid);
+    Logger.Debug("PASSWORD EEPROM: ");
+    Serial.print(password);
     _ssid = ssid;
     _password = password;
   }
-  Serial.print("PASSWORD EEPROM: ");
-  Serial.println(password);
 }
 
 void bluetoothSetup() {
@@ -395,37 +397,96 @@ void bluetoothSetup() {
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pServer->getAdvertising()->start();
-  Serial.println("Waiting a client connection to notify...");
+  Logger.Info("Waiting a client connection to notify...");
+}
+
+static void getPayload(az_span payload, az_span* out_payload) {
+  az_span original_payload = payload;
+  payload = az_span_copy(
+      payload, AZ_SPAN_FROM_STR("{ \"msgCount\": "));
+  (void)az_span_u32toa(payload, payload_send_count++, &payload);
+  payload = az_span_copy(payload, constructDataPayload()); 
+  payload = az_span_copy(payload, AZ_SPAN_FROM_STR(" }"));
+  payload = az_span_copy_u8(payload, '\0');
+
+  *out_payload = az_span_slice(original_payload, 0, az_span_size(original_payload) - az_span_size(payload));
+}
+
+static az_span constructDataPayload() {
+  return AZ_SPAN_FROM_STR(", \"data\": {\n \"temp\": 18.0,\n \"hygro\": \"wet|dry\",\n \"lum\": \"N/A\"\n },");
 }
 
 void sendData() {
-  std::string data = "Hello from analyzer";
-  /*az_span payload = az_span_copy(payload, AZ_SPAN_FROM_STR(data));
-  (void)az_span_u32toa(payload, payload_send_count++, &payload);*/
+  Logger.Info("SendData BEGIN");
+  az_span data = AZ_SPAN_FROM_BUFFER(payload);
+  
+  if (az_result_failed(az_iot_hub_client_telemetry_get_publish_topic(
+          &client, NULL, analyzer_topic, sizeof(analyzer_topic), NULL)))
+  {
+    Logger.Error("Failed az_iot_hub_client_telemetry_get_publish_topic");
+    return;
+  }
+  Logger.Info("Payload construction...");
+  getPayload(data, &data);
+  Logger.Info("Payload constructed success");
+  if (esp_mqtt_client_publish(
+          mqtt_client,
+          analyzer_topic,
+          (const char*)az_span_ptr(data),
+          az_span_size(data),
+          MQTT_QOS1,
+          DO_NOT_RETAIN_MSG)
+      == 0)
+  {
+    Logger.Error("Failed publishing");
+  }
+  else
+  {
+    Logger.Info("Message published successfully");
+  }
+  Logger.Info("SendData END");
 }
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Analyzer initializing...");
+  Logger.Info("Analyzer initializing...");
   EEPROM.begin(200);
   readConfig();
+  //TMP
+  _ssid = "iPhone_de_Julien";
+  _password = "juju91190";
+  //END TMP
   if (_ssid.length() > 0 && _password.length() > 0) {
-    Serial.println("Already config, booting...");
+    Logger.Info("Already config, with:");
+    Logger.Info(_ssid.c_str());
+    Logger.Info(_password.c_str());
     wifiSetup(_ssid, _password);
     if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("WIFI ERROR, switching to bluetooth mode");
+      Logger.Error("WIFI ERROR, switching to bluetooth mode");
       bluetoothSetup();
     } else {
         //connexion à azure
-        Serial.print("Azure connection...");
+        Logger.Info("Azure connection...");
         establishConnection();
     }
   } else {
-    Serial.println("Configuration mode detected");
+    Logger.Warning("Configuration mode detected");
     bluetoothSetup();
   }
 }
 
 void loop() {
-  
+  Logger.Info("New loop");
+  if (WiFi.status() != WL_CONNECTED) {
+    Logger.Error("Not connected to wifi");
+  }
+  else if (sasToken.IsExpired()) {
+    Logger.Info("SAS token expired; reconnecting with a new one.");
+    (void)esp_mqtt_client_destroy(mqtt_client);
+    initializeMqttClient();
+  } else if (millis() > next_data_send_time_ms) {
+     sendData();
+     next_data_send_time_ms = millis() + 2000;
+  }
+  delay(15000);
 }
