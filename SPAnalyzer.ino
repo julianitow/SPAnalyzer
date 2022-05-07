@@ -23,31 +23,6 @@
 #include "SerialLogger.h"
 #include "iot_configs.h"
 
-// When developing for your own Arduino-based platform,
-// please follow the format '(ard;<platform>)'. 
-#define AZURE_SDK_CLIENT_USER_AGENT "c/" AZ_SDK_VERSION_STRING "(ard;esp32)"
-
-// Utility macros and defines
-#define sizeofarray(a) (sizeof(a) / sizeof(a[0]))
-#define NTP_SERVERS "pool.ntp.org", "time.nist.gov"
-#define MQTT_QOS1 1
-#define DO_NOT_RETAIN_MSG 0
-#define SAS_TOKEN_DURATION_IN_MINUTES 60
-#define UNIX_TIME_NOV_13_2017 1510592825
-
-#define PST_TIME_ZONE -8
-#define PST_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF   1
-
-#define GMT_OFFSET_SECS (PST_TIME_ZONE * 3600)
-#define GMT_OFFSET_SECS_DST ((PST_TIME_ZONE + PST_TIME_ZONE_DAYLIGHT_SAVINGS_DIFF) * 3600)
-
-#define deviceName "SOULPOT_ESP32_00"
-#define SERVICE_UUID "80b7f088-0084-43e1-a687-8457bcb2dbc8"
-#define CHAR_UUID "96c44fd5-c309-4553-a11e-b8457810b94c"
-#define DESC_UUID "544bd464-8388-42aa-99cd-81cf6e6042d7"
-
-#define EEPROM_ADDR 0
-
 // Translate iot_configs.h defines into variables used by the sample
 static const char* host = IOT_CONFIG_IOTHUB_FQDN;
 static const char* mqtt_broker_uri = "mqtts://" IOT_CONFIG_IOTHUB_FQDN;
@@ -63,12 +38,11 @@ static char mqtt_username[128];
 static char mqtt_password[200];
 static uint8_t sas_signature_buffer[256];
 static unsigned long next_data_send_time_ms = 0;
-static char analyzer_topic[128];
+static char analyzer_topic[TOPIC_SIZE];
 static uint32_t payload_send_count = 0;
 
-#define INCOMING_DATA_BUFFER_SIZE 128
 static char incoming_data[INCOMING_DATA_BUFFER_SIZE];
-static uint8_t payload[100];
+static uint8_t payload[PAYLOAD_SIZE];
 
 BLECharacteristic wifiParamChar(CHAR_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
 BLEDescriptor wifiParamCharDesc(DESC_UUID);
@@ -78,6 +52,49 @@ static std::string _ssid, _password;
 
 void wifiSetup(std::string, std::string);
 static AzIoTSasToken sasToken(&client, AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_KEY),AZ_SPAN_FROM_BUFFER(sas_signature_buffer), AZ_SPAN_FROM_BUFFER(mqtt_password));
+
+//Setup callbacks onConnect and onDisconnect
+class MyServerCallbacks: public BLEServerCallbacks {
+  void onConnect(BLEServer* pServer) {
+    deviceConnected = true;
+    Logger.Info("New client connected");
+  };
+  void onDisconnect(BLEServer* pServer) {
+    deviceConnected = false;
+    Logger.Warning("Client disconnected");
+  }
+};
+
+class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
+  void onRead(BLECharacteristic* pCharacteristic) {
+    Serial.println("onRead triggered");
+  }
+  void onWrite(BLECharacteristic* pCharacteristic) {
+    Logger.Info("received: ");
+    Logger.Info(pCharacteristic->getValue().c_str());
+    std::string value = pCharacteristic->getValue();
+    int scIndex = 0;
+    std::string ssid = "";
+    std::string password = "";
+
+    for(int i = 0; i < value.length(); i++) {
+      if(value[i] == ',') {
+        scIndex = i;
+      }
+    }
+
+    for(int i = 0; i < scIndex; i++) {
+      ssid += value[i];
+    }
+    
+    for(int i = scIndex + 1; i < value.length(); i++) {
+      password += value[i];
+    }
+    _ssid = ssid;
+    _password = password;
+    wifiSetup(ssid, password);
+  }
+};
 
 static void initializeTime()
 {
@@ -265,53 +282,10 @@ static void establishConnection()
   (void)initializeMqttClient();
 }
 
-//Setup callbacks onConnect and onDisconnect
-class MyServerCallbacks: public BLEServerCallbacks {
-  void onConnect(BLEServer* pServer) {
-    deviceConnected = true;
-    Logger.Info("New client connected");
-  };
-  void onDisconnect(BLEServer* pServer) {
-    deviceConnected = false;
-    Logger.Warning("Client disconnected");
-  }
-};
-
-class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
-  void onRead(BLECharacteristic* pCharacteristic) {
-    Serial.println("onRead triggered");
-  }
-  void onWrite(BLECharacteristic* pCharacteristic) {
-    Logger.Info("received: ");
-    Logger.Info(pCharacteristic->getValue().c_str());
-    std::string value = pCharacteristic->getValue();
-    int scIndex = 0;
-    std::string ssid = "";
-    std::string password = "";
-
-    for(int i = 0; i < value.length(); i++) {
-      if(value[i] == ',') {
-        scIndex = i;
-      }
-    }
-
-    for(int i = 0; i < scIndex; i++) {
-      ssid += value[i];
-    }
-    
-    for(int i = scIndex + 1; i < value.length(); i++) {
-      password += value[i];
-    }
-    _ssid = ssid;
-    _password = password;
-    wifiSetup(ssid, password);
-  }
-};
-
 void wifiSetup(std::string ssid, std::string password) {
   _ssid = ssid;
   _password = password;
-  WiFi.setHostname(deviceName);
+  WiFi.setHostname(DEVICE_NAME);
   WiFi.mode(WIFI_STA);  
   WiFi.begin(ssid.c_str(), password.c_str());
   Logger.Info("WifiConfig connecting to ");
@@ -322,7 +296,7 @@ void wifiSetup(std::string ssid, std::string password) {
   }
   Logger.Info("Successfully connected to ");
   Serial.print(ssid.c_str());
-  Serial.print(" Local ip: ");
+  Logger.Info(" Local ip: ");
   Serial.println(WiFi.localIP());
   saveConfigEEPROM();
 }
@@ -344,7 +318,7 @@ void saveConfigEEPROM() {
   }
 
   if (EEPROM.commit()) {
-    Logger.Debug("Sucess !");
+    Logger.Debug("Success !");
   } else {
     Logger.Error("Failed to save in EEPROM!");
   }
@@ -384,7 +358,7 @@ void readConfig() {
 }
 
 void bluetoothSetup() {
-  BLEDevice::init(deviceName);
+  BLEDevice::init(DEVICE_NAME);
   BLEServer *pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
   BLEService *bmeService = pServer->createService(SERVICE_UUID);
@@ -405,6 +379,12 @@ static void getPayload(az_span payload, az_span* out_payload) {
   payload = az_span_copy(
       payload, AZ_SPAN_FROM_STR("{ \"msgCount\": "));
   (void)az_span_u32toa(payload, payload_send_count++, &payload);
+  payload = az_span_copy(
+      payload, AZ_SPAN_FROM_STR(",\"device_id\": \""));
+  payload = az_span_copy(
+      payload, AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_ID));
+  payload = az_span_copy(
+      payload, AZ_SPAN_FROM_STR("\""));
   payload = az_span_copy(payload, constructDataPayload()); 
   payload = az_span_copy(payload, AZ_SPAN_FROM_STR(" }"));
   payload = az_span_copy_u8(payload, '\0');
@@ -413,7 +393,7 @@ static void getPayload(az_span payload, az_span* out_payload) {
 }
 
 static az_span constructDataPayload() {
-  return AZ_SPAN_FROM_STR(", \"data\": {\n \"temp\": 18.0,\n \"hygro\": \"wet|dry\",\n \"lum\": \"N/A\"\n },");
+  return AZ_SPAN_FROM_STR(",\"data\": {\n \"temp\": 18.0,\n \"hygro\": \"wet|dry\",\n \"lum\": \"N/A\"\n },");
 }
 
 void sendData() {
