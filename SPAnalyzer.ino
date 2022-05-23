@@ -593,6 +593,11 @@ void createBlinkGreenTask() {
   xTaskCreatePinnedToCore(greenBlink, "greenBlink", 10000, NULL, 0, &greenBlinkTask, 0);
 }
 
+void stopGreenBlink() {
+  vTaskDelete(greenBlinkTask);
+  digitalWrite(greenLed, HIGH);
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(redLed, OUTPUT);
@@ -620,9 +625,7 @@ void setup() {
         establishConnection();
         sensors.begin();
         pinMode(relayBus, OUTPUT);
-        digitalWrite(greenLed, HIGH);
-        vTaskDelete(greenBlinkTask);
-        digitalWrite(redLed, HIGH);
+        stopGreenBlink();
     }
   } else {
     Logger.Warning("Configuration mode detected");
@@ -631,7 +634,6 @@ void setup() {
 }
 
 void loop() {
-  Logger.Info("New loop");
   if (WiFi.status() != WL_CONNECTED) {
     Logger.Info("Waiting for a client to notify...");
   }
@@ -640,8 +642,12 @@ void loop() {
     (void)esp_mqtt_client_destroy(mqtt_client);
     initializeMqttClient();
   } else if (millis() > next_data_send_time_ms) {
-     sendData();
-     next_data_send_time_ms = millis() + 2000;
+    Logger.Info("Pushing data to hub...");
+    createBlinkGreenTask();
+    sendData();
+    next_data_send_time_ms = millis() + 15000;
+    stopGreenBlink();
+    Serial.println("Ok");
   }
-  delay(15000);
+  //delay(15000);
 }
