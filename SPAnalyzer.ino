@@ -65,6 +65,7 @@ static std::string _ssid, _password;
 
 // sensors
 const int oneWireBus = 4;
+const int relayBus = 26;
 
 OneWire oneWire(oneWireBus);
 DallasTemperature sensors(&oneWire);
@@ -196,7 +197,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
       }
       incoming_data[i] = '\0';
       Logger.Info("Data: " + String(incoming_data));
-
+      incomingDataFilter();
       break;
     case MQTT_EVENT_BEFORE_CONNECT:
       Logger.Info("MQTT event MQTT_EVENT_BEFORE_CONNECT");
@@ -207,6 +208,21 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
   }
 
   return ESP_OK;
+}
+
+static void incomingDataFilter() {
+  std::string data(incoming_data);
+  std::string propName = data.substr(0, data.find(":"));
+  propName = data.substr(data.find("{") + 2, propName.length() - 3);
+  if (propName == "sprinkle") {
+    std::string propVal = data.substr(data.find(":") + 2, data.length() - 1);
+    propVal = propVal.substr(0, propVal.find("}") - 1);
+    if (propVal == "true") {
+      sprink(true);
+    } else {
+      sprink(false);
+    }
+  }
 }
 
 static void initializeIoTHubClient()
@@ -309,6 +325,16 @@ static void initializeSensors() {
     configureLumSensor();
   } else {
     Logger.Error("TSL2591 not found !");
+  }
+}
+
+void sprink(bool status) {
+  if (status) {
+    Logger.Debug("SPRINK");
+    digitalWrite(relayBus, HIGH);
+  } else {
+    Logger.Debug("NOT SPRINK");
+    digitalWrite(relayBus, LOW);
   }
 }
 
@@ -571,6 +597,7 @@ void setup() {
         Logger.Info("Azure connection...");
         establishConnection();
         sensors.begin();
+        pinMode(relayBus, OUTPUT);
     }
   } else {
     Logger.Warning("Configuration mode detected");
