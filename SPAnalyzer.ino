@@ -505,12 +505,11 @@ static az_span constructDataPayload() {
   time_t now = time(NULL);
   ptm = gmtime(&now);
   // Logger.Debug(isotime(ptm));
-  float temp = getTemperature();
-  float lum = getLux();
-  std::string payloadStr = ",\"data\": {\n \"temp\": " + std::to_string(temp) + ",\n \"hygro\": \"wet|dry\",\n \"lum\": \"" + std::to_string(lum) + "\n },";
-  String test = "heelo";
-  const uint8_t* payload = reinterpret_cast<const uint8_t*>(&test);
-  return AZ_SPAN_LITERAL_FROM_STR(payload);
+  double temp = getTemperature();
+  double lum = getLux();
+  std::string payloadStr = ",\"data\": {\n \"temp\": \"" + std::to_string(temp) + "\",\"hygro\": \"wet|dry\",\"lum\": \"" + std::to_string(lum) + "\"\n },";
+  az_span span = az_span_create_from_str((char*) payloadStr.c_str());
+  return span;
 }
 
 void sendData() {
