@@ -6,6 +6,15 @@
 #include <WiFi.h>
 #include <EEPROM.h>
 
+// temperature sensor
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+// luminosity sensor
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include "Adafruit_TSL2591.h"
+
 // C99 libraries
 #include <cstdlib>
 #include <time.h>
@@ -44,11 +53,22 @@ static uint32_t payload_send_count = 0;
 static char incoming_data[INCOMING_DATA_BUFFER_SIZE];
 static uint8_t payload[PAYLOAD_SIZE];
 
+struct tm* ptm;
+
+static char* networks; 
+
 BLECharacteristic wifiParamChar(CHAR_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
 BLEDescriptor wifiParamCharDesc(DESC_UUID);
 
 bool deviceConnected = false;
 static std::string _ssid, _password; 
+
+// sensors
+const int oneWireBus = 4;
+
+OneWire oneWire(oneWireBus);
+DallasTemperature sensors(&oneWire);
+Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591); 
 
 void wifiSetup(std::string, std::string);
 static AzIoTSasToken sasToken(&client, AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_KEY),AZ_SPAN_FROM_BUFFER(sas_signature_buffer), AZ_SPAN_FROM_BUFFER(mqtt_password));
@@ -68,6 +88,7 @@ class MyServerCallbacks: public BLEServerCallbacks {
 class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
   void onRead(BLECharacteristic* pCharacteristic) {
     Serial.println("onRead triggered");
+    pCharacteristic->setValue(networks);
   }
   void onWrite(BLECharacteristic* pCharacteristic) {
     Logger.Info("received: ");
@@ -282,6 +303,65 @@ static void establishConnection()
   (void)initializeMqttClient();
 }
 
+static void initializeSensors() {
+  if (tsl.begin()) {
+    Logger.Info("TSL2591 found !");
+    configureLumSensor();
+  } else {
+    Logger.Error("TSL2591 not found !");
+  }
+}
+
+float getLux() {
+  uint32_t lum = tsl.getFullLuminosity();
+  uint16_t ir, full;
+  ir = lum >> 16;
+  full = lum & 0xFFFF;
+  return tsl.calculateLux(full, ir);
+}
+
+void configureLumSensor(void)
+{
+  // You can change the gain on the fly, to adapt to brighter/dimmer light situations
+  //tsl.setGain(TSL2591_GAIN_LOW);    // 1x gain (bright light)
+  tsl.setGain(TSL2591_GAIN_MED);      // 25x gain
+  //tsl.setGain(TSL2591_GAIN_HIGH);   // 428x gain
+ 
+  // Changing the integration time gives you a longer time over which to sense light
+  // longer timelines are slower, but are good in very low light situtations!
+  //tsl.setTiming(TSL2591_INTEGRATIONTIME_100MS);  // shortest integration time (bright light)
+  // tsl.setTiming(TSL2591_INTEGRATIONTIME_200MS);
+  tsl.setTiming(TSL2591_INTEGRATIONTIME_300MS);
+  // tsl.setTiming(TSL2591_INTEGRATIONTIME_400MS);
+  // tsl.setTiming(TSL2591_INTEGRATIONTIME_500MS);
+  // tsl.setTiming(TSL2591_INTEGRATIONTIME_600MS);  // longest integration time (dim light)
+ 
+  /* Display the gain and integration time for reference sake */  
+  Logger.Info("------------------------------------");
+  Logger.Info("Gain:         ");
+  tsl2591Gain_t gain = tsl.getGain();
+  switch(gain)
+  {
+    case TSL2591_GAIN_LOW:
+      Logger.Info("1x (Low)");
+      break;
+    case TSL2591_GAIN_MED:
+      Logger.Info("25x (Medium)");
+      break;
+    case TSL2591_GAIN_HIGH:
+      Logger.Info("428x (High)");
+      break;
+    case TSL2591_GAIN_MAX:
+      Logger.Info("9876x (Max)");
+      break;
+  }
+  Logger.Info("Timing:       ");
+  Serial.print((tsl.getTiming() + 1) * 100, DEC); 
+  Serial.println(F(" ms"));
+  Serial.println(F("------------------------------------"));
+  Serial.println(F(""));
+}
+
 void wifiSetup(std::string ssid, std::string password) {
   _ssid = ssid;
   _password = password;
@@ -299,6 +379,35 @@ void wifiSetup(std::string ssid, std::string password) {
   Logger.Info(" Local ip: ");
   Serial.println(WiFi.localIP());
   saveConfigEEPROM();
+}
+
+void listNetworks() {
+  Logger.Info("Networks available:");
+  int numSsid = WiFi.scanNetworks();
+  if (numSsid == -1) {
+    Logger.Error("Couldn't get a wifi connection");
+  }
+  networks = (char *) malloc(1); //static char*
+  // print the network number and name for each network found:
+  for (int net = 0; net < numSsid; net++) {
+    const char* ssid = WiFi.SSID(net).c_str();
+    if (strlen(ssid) > 0) {
+      int size = strlen(networks) + 1 + strlen(ssid) + 1;
+      char* new_networks = (char *) malloc(size);
+      strcpy(new_networks, networks);
+      strcat(new_networks, ssid);
+      Serial.println(size);
+      Serial.println(new_networks);
+    }
+    /*strcat(cSsid, ssid);
+    Serial.print(WiFi.SSID(net));
+    Serial.print(" => Signal: ");
+    Serial.print(WiFi.RSSI(net));
+    Serial.print(" dBm\n");
+    strcat(networks, cSsid);
+    //strcat(",", networks);
+    Logger.Debug(networks);*/
+  }
 }
 
 void saveConfigEEPROM() {
@@ -371,7 +480,7 @@ void bluetoothSetup() {
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pServer->getAdvertising()->start();
-  Logger.Info("Waiting a client connection to notify...");
+  Logger.Info("Waiting for a client to notify...");
 }
 
 static void getPayload(az_span payload, az_span* out_payload) {
@@ -393,7 +502,15 @@ static void getPayload(az_span payload, az_span* out_payload) {
 }
 
 static az_span constructDataPayload() {
-  return AZ_SPAN_FROM_STR(",\"data\": {\n \"temp\": 18.0,\n \"hygro\": \"wet|dry\",\n \"lum\": \"N/A\"\n },");
+  time_t now = time(NULL);
+  ptm = gmtime(&now);
+  // Logger.Debug(isotime(ptm));
+  float temp = getTemperature();
+  float lum = getLux();
+  std::string payloadStr = ",\"data\": {\n \"temp\": " + std::to_string(temp) + ",\n \"hygro\": \"wet|dry\",\n \"lum\": \"" + std::to_string(lum) + "\n },";
+  String test = "heelo";
+  const uint8_t* payload = reinterpret_cast<const uint8_t*>(&test);
+  return AZ_SPAN_LITERAL_FROM_STR(payload);
 }
 
 void sendData() {
@@ -427,15 +544,21 @@ void sendData() {
   Logger.Info("SendData END");
 }
 
+float getTemperature() {
+  sensors.requestTemperatures(); 
+  return sensors.getTempCByIndex(0);
+}
+
 void setup() {
   Serial.begin(115200);
   Logger.Info("Analyzer initializing...");
+  // listNetworks();
   EEPROM.begin(200);
   readConfig();
-  //TMP
-  _ssid = "iPhone_de_Julien";
-  _password = "juju91190";
-  //END TMP
+  // TMP
+  _ssid = "uifeedu75";
+  _password = "mandalorianBGdu75";
+  // END TMP
   if (_ssid.length() > 0 && _password.length() > 0) {
     Logger.Info("Already config, with:");
     Logger.Info(_ssid.c_str());
@@ -448,6 +571,7 @@ void setup() {
         //connexion à azure
         Logger.Info("Azure connection...");
         establishConnection();
+        sensors.begin();
     }
   } else {
     Logger.Warning("Configuration mode detected");
@@ -458,7 +582,7 @@ void setup() {
 void loop() {
   Logger.Info("New loop");
   if (WiFi.status() != WL_CONNECTED) {
-    Logger.Error("Not connected to wifi");
+    Logger.Info("Waiting for a client to notify...");
   }
   else if (sasToken.IsExpired()) {
     Logger.Info("SAS token expired; reconnecting with a new one.");
