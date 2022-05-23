@@ -67,6 +67,12 @@ static std::string _ssid, _password;
 const int oneWireBus = 4;
 const int relayBus = 26;
 
+// leds
+const int redLed = 39;
+const int greenLed = 23;
+
+TaskHandle_t greenBlinkTask;
+
 OneWire oneWire(oneWireBus);
 DallasTemperature sensors(&oneWire);
 Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591); 
@@ -574,8 +580,24 @@ float getTemperature() {
   return sensors.getTempCByIndex(0);
 }
 
+void greenBlink(void * pvParameters) {
+  for(;;){
+    digitalWrite(greenLed, HIGH);
+    delay(500);
+    digitalWrite(greenLed, LOW);
+    delay(500);
+  } 
+}
+
+void createBlinkGreenTask() {
+  xTaskCreatePinnedToCore(greenBlink, "greenBlink", 10000, NULL, 0, &greenBlinkTask, 0);
+}
+
 void setup() {
   Serial.begin(115200);
+  pinMode(redLed, OUTPUT);
+  pinMode(greenLed, OUTPUT);
+  createBlinkGreenTask();
   Logger.Info("Analyzer initializing...");
   // listNetworks();
   EEPROM.begin(200);
@@ -598,6 +620,9 @@ void setup() {
         establishConnection();
         sensors.begin();
         pinMode(relayBus, OUTPUT);
+        digitalWrite(greenLed, HIGH);
+        vTaskDelete(greenBlinkTask);
+        digitalWrite(redLed, HIGH);
     }
   } else {
     Logger.Warning("Configuration mode detected");
