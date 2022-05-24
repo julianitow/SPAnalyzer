@@ -66,10 +66,21 @@ static std::string _ssid, _password;
 // sensors
 const int oneWireBus = 4;
 const int relayBus = 26;
+const int moistureBus = 36;
 
 // leds
 const int redLed = 39;
 const int greenLed = 23;
+
+// button
+const int buttonBus = 15;
+unsigned long pressedTime = 0;
+unsigned long releasedTime = 0;
+int lastState = LOW;
+int currentState;
+int nbPressed = 0;
+const int SHORT_PRESS_TIME = 500;
+const int RESET_PRESS_TIME = 10000;
 
 TaskHandle_t greenBlinkTask;
 
@@ -352,6 +363,11 @@ float getLux() {
   return tsl.calculateLux(full, ir);
 }
 
+int getMoisture() {
+  const int value = analogRead(moistureBus);
+  return value;
+}
+
 void configureLumSensor(void)
 {
   // You can change the gain on the fly, to adapt to brighter/dimmer light situations
@@ -440,6 +456,25 @@ void listNetworks() {
     //strcat(",", networks);
     Logger.Debug(networks);*/
   }
+}
+
+void eraseMemory() {
+  createBlinkGreenTask();
+  Logger.Warning("********************SELF DESTRUCT MODE ENGAGED********************");
+  delay(500);
+  const int lastIndex = _ssid.length() + _password.length();
+  for (int i = 0; i < lastIndex; i++) {
+    EEPROM.write(i, 0);
+    int status = (i / lastIndex * 100);
+    std::string statusStr = "********************SOULPOT_ANALYZER 0S Erasing..." + std::to_string(status) + "****************";
+    Logger.Warning(statusStr.c_str());
+  }
+  EEPROM.commit();
+  delay(500);
+  Logger.Warning("********************SOULPOT_ANALYZER 0S Rebooting...**************");
+  delay(500);
+  Logger.Warning("********************SOULPOT_ANALYZER 0S Bye.**********************");
+  ESP.restart();
 }
 
 void saveConfigEEPROM() {
@@ -539,13 +574,13 @@ static az_span constructDataPayload() {
   // Logger.Debug(isotime(ptm));
   double temp = getTemperature();
   double lum = getLux();
-  std::string payloadStr = ",\"data\": {\n \"temp\": \"" + std::to_string(temp) + "\",\"hygro\": \"wet|dry\",\"lum\": \"" + std::to_string(lum) + "\"\n },";
+  int moisture = getMoisture();
+  std::string payloadStr = ",\"data\": {\n \"temp\": \"" + std::to_string(temp) + "\",\"hygro\": \""+ std::to_string(moisture) + "\",\"lum\": \"" + std::to_string(lum) + "\"\n },";
   az_span span = az_span_create_from_str((char*) payloadStr.c_str());
   return span;
 }
 
 void sendData() {
-  Logger.Info("SendData BEGIN");
   az_span data = AZ_SPAN_FROM_BUFFER(payload);
   
   if (az_result_failed(az_iot_hub_client_telemetry_get_publish_topic(
@@ -554,9 +589,9 @@ void sendData() {
     Logger.Error("Failed az_iot_hub_client_telemetry_get_publish_topic");
     return;
   }
-  Logger.Info("Payload construction...");
+  Logger.Info("Payload construction: in progress...");
   getPayload(data, &data);
-  Logger.Info("Payload constructed success");
+  Logger.Info("Payload construction: success");
   if (esp_mqtt_client_publish(
           mqtt_client,
           analyzer_topic,
@@ -572,7 +607,6 @@ void sendData() {
   {
     Logger.Info("Message published successfully");
   }
-  Logger.Info("SendData END");
 }
 
 float getTemperature() {
@@ -598,12 +632,35 @@ void stopGreenBlink() {
   digitalWrite(greenLed, HIGH);
 }
 
+void manageButtonPress() {
+  currentState = digitalRead(buttonBus);
+  if (lastState == HIGH && currentState == LOW) {
+    pressedTime = millis();
+    nbPressed++;
+  } else if (lastState == LOW && currentState == HIGH) {
+    releasedTime = millis();
+    long pressDuration = releasedTime - pressedTime;
+    nbPressed++;
+    if (pressDuration > RESET_PRESS_TIME) {
+      eraseMemory();
+    } else if (pressDuration < SHORT_PRESS_TIME && nbPressed == 1) {
+      Logger.Info("Rebooting analyzer...bye");
+      ESP.restart();
+    } else if (pressDuration < SHORT_PRESS_TIME && nbPressed == 2) {
+      Logger.Info("Glitching !");
+    }
+  }
+  lastState = currentState;
+  nbPressed = 0;
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(redLed, OUTPUT);
   pinMode(greenLed, OUTPUT);
+  pinMode(buttonBus, INPUT_PULLUP);
   createBlinkGreenTask();
-  Logger.Info("Analyzer initializing...");
+  Logger.Warning("********************SOULPOT_ANALYZER OS Booting...********************");
   // listNetworks();
   EEPROM.begin(200);
   readConfig();
@@ -629,13 +686,14 @@ void setup() {
     }
   } else {
     Logger.Warning("Configuration mode detected");
+    Logger.Info("Waiting for a client to notify...");
     bluetoothSetup();
   }
 }
 
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
-    Logger.Info("Waiting for a client to notify...");
+    
   }
   else if (sasToken.IsExpired()) {
     Logger.Info("SAS token expired; reconnecting with a new one.");
@@ -647,7 +705,7 @@ void loop() {
     sendData();
     next_data_send_time_ms = millis() + 15000;
     stopGreenBlink();
-    Serial.println("Ok");
   }
-  //delay(15000);
+
+  manageButtonPress();
 }
