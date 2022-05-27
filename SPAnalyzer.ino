@@ -60,6 +60,8 @@ static char* networks;
 BLECharacteristic wifiParamChar(CHAR_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
 BLEDescriptor wifiParamCharDesc(DESC_UUID);
 
+enum State { ANALYZER_OK, ANALYZER_PAIRING, ANALYZER_ERROR };
+State globalState = ANALYZER_PAIRING;
 bool deviceConnected = false;
 static std::string _ssid, _password; 
 
@@ -82,6 +84,9 @@ int nbPressed = 0;
 const int SHORT_PRESS_TIME = 500;
 const int RESET_PRESS_TIME = 10000;
 
+// WiFi
+const int timeout = 5000; //ms
+
 TaskHandle_t greenBlinkTask;
 
 OneWire oneWire(oneWireBus);
@@ -89,6 +94,7 @@ DallasTemperature sensors(&oneWire);
 Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591); 
 
 void wifiSetup(std::string, std::string);
+void restart();
 static AzIoTSasToken sasToken(&client, AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_KEY),AZ_SPAN_FROM_BUFFER(sas_signature_buffer), AZ_SPAN_FROM_BUFFER(mqtt_password));
 
 //Setup callbacks onConnect and onDisconnect
@@ -106,7 +112,7 @@ class MyServerCallbacks: public BLEServerCallbacks {
 class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
   void onRead(BLECharacteristic* pCharacteristic) {
     Serial.println("onRead triggered");
-    pCharacteristic->setValue(networks);
+    pCharacteristic->setValue(std::to_string(globalState).c_str());
   }
   void onWrite(BLECharacteristic* pCharacteristic) {
     Logger.Info("received: ");
@@ -132,6 +138,12 @@ class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
     _ssid = ssid;
     _password = password;
     wifiSetup(ssid, password);
+    if (WiFi.status() == WL_CONNECTED) {
+      restart(); 
+    } else {
+      Logger.Error("Error WiFi connection");
+      pCharacteristic->setValue("error");
+    }
   }
 };
 
@@ -418,10 +430,19 @@ void wifiSetup(std::string ssid, std::string password) {
   WiFi.begin(ssid.c_str(), password.c_str());
   Logger.Info("WifiConfig connecting to ");
   Serial.print(ssid.c_str());
+  const unsigned long begin = millis();
+  
   while(WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
-    delay(500);
+    unsigned long now = millis();
+    if (now - begin > timeout) {
+      Logger.Error("Timeout while trying to connect to WiFi");
+      globalState = ANALYZER_ERROR;
+      return;
+    }
+    delay(1000);
   }
+  globalState = ANALYZER_OK;
   Logger.Info("Successfully connected to ");
   Serial.print(ssid.c_str());
   Logger.Info(" Local ip: ");
@@ -643,15 +664,19 @@ void manageButtonPress() {
     nbPressed++;
     if (pressDuration > RESET_PRESS_TIME) {
       eraseMemory();
-    } else if (pressDuration < SHORT_PRESS_TIME && nbPressed == 1) {
-      Logger.Info("Rebooting analyzer...bye");
-      ESP.restart();
-    } else if (pressDuration < SHORT_PRESS_TIME && nbPressed == 2) {
-      Logger.Info("Glitching !");
+    } else if (pressDuration < SHORT_PRESS_TIME) {
+      Logger.Debug(std::to_string(currentState).c_str());
+      Logger.Debug(std::to_string(pressDuration).c_str());
+      restart();
     }
   }
   lastState = currentState;
   nbPressed = 0;
+}
+
+void restart() {
+  Logger.Info("Rebooting analyzer...bye");
+  ESP.restart();
 }
 
 void setup() {
@@ -665,8 +690,8 @@ void setup() {
   EEPROM.begin(200);
   readConfig();
   // TMP
-  _ssid = "uifeedu75";
-  _password = "mandalorianBGdu75";
+  // _ssid = "uifeedu75";
+  // _password = "mandalorianBGdu75zedzedze";
   // END TMP
   if (_ssid.length() > 0 && _password.length() > 0) {
     Logger.Info("Already config, with:");
