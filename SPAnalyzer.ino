@@ -588,7 +588,10 @@ static void getPayload(az_span payload, az_span* out_payload) {
 
   *out_payload = az_span_slice(original_payload, 0, az_span_size(original_payload) - az_span_size(payload));
 }
-
+/**
+ * Comment if no sensors connected with old line:
+ * return AZ_SPAN_FROM_STR(",\"data\": {\n \"temp\": 18.0,\n \"hygro\": \"wet|dry\",\n \"lum\": \"N/A\"\n },");
+ */
 static az_span constructDataPayload() {
   time_t now = time(NULL);
   ptm = gmtime(&now);
@@ -705,7 +708,7 @@ void setup() {
         //connexion à azure
         Logger.Info("Azure connection...");
         establishConnection();
-        sensors.begin();
+        sensors.begin(); // comment if no sensors connected
         pinMode(relayBus, OUTPUT);
         stopGreenBlink();
     }
