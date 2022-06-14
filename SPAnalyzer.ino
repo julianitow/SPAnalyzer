@@ -57,25 +57,29 @@ struct tm* ptm;
 
 static char* networks; 
 
+// Bluetooth
+BLEServer *pServer;
+BLEService *bmeService;
+BLEAdvertising *pAdvertising;
+
 BLECharacteristic wifiParamChar(CHAR_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
 BLEDescriptor wifiParamCharDesc(DESC_UUID);
 
 enum State { ANALYZER_OK, ANALYZER_PAIRING, ANALYZER_ERROR };
 State globalState = ANALYZER_PAIRING;
-bool deviceConnected = false;
 static std::string _ssid, _password; 
 
 // sensors
-const int oneWireBus = 4;
+const int oneWireBus = 33;
 const int relayBus = 26;
-const int moistureBus = 36;
+const int moistureBus = 34;
 
 // leds
 const int redLed = 39;
 const int greenLed = 23;
 
 // button
-const int buttonBus = 15;
+const int buttonBus = 35;
 unsigned long pressedTime = 0;
 unsigned long releasedTime = 0;
 int lastState = LOW;
@@ -85,7 +89,7 @@ const int SHORT_PRESS_TIME = 500;
 const int RESET_PRESS_TIME = 10000;
 
 // WiFi
-const int timeout = 5000; //ms
+const int timeout = 10000; //ms
 
 TaskHandle_t greenBlinkTask;
 
@@ -93,27 +97,37 @@ OneWire oneWire(oneWireBus);
 DallasTemperature sensors(&oneWire);
 Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591); 
 
+void bluetoothSetup();
 void wifiSetup(std::string, std::string);
 void restart();
 static AzIoTSasToken sasToken(&client, AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_KEY),AZ_SPAN_FROM_BUFFER(sas_signature_buffer), AZ_SPAN_FROM_BUFFER(mqtt_password));
 
 //Setup callbacks onConnect and onDisconnect
 class MyServerCallbacks: public BLEServerCallbacks {
+  
   void onConnect(BLEServer* pServer) {
-    deviceConnected = true;
     Logger.Info("New client connected");
   };
+  
   void onDisconnect(BLEServer* pServer) {
-    deviceConnected = false;
     Logger.Warning("Client disconnected");
+    if (WiFi.status() != WL_CONNECTED) {
+      Logger.Warning("Restart bluetooth");
+      pServer->getAdvertising()->start();
+    }
   }
 };
 
 class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
   void onRead(BLECharacteristic* pCharacteristic) {
     Serial.println("onRead triggered");
-    pCharacteristic->setValue(std::to_string(globalState).c_str());
+    if (globalState == ANALYZER_OK) {
+      pCharacteristic->setValue(IOT_CONFIG_DEVICE_ID);
+    } else {
+      pCharacteristic->setValue(std::to_string(globalState).c_str());
+    }
   }
+  
   void onWrite(BLECharacteristic* pCharacteristic) {
     Logger.Info("received: ");
     Logger.Info(pCharacteristic->getValue().c_str());
@@ -135,6 +149,7 @@ class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
     for(int i = scIndex + 1; i < value.length(); i++) {
       password += value[i];
     }
+    
     _ssid = ssid;
     _password = password;
     wifiSetup(ssid, password);
@@ -349,6 +364,7 @@ static void establishConnection()
 }
 
 static void initializeSensors() {
+  sensors.begin();
   if (tsl.begin()) {
     Logger.Info("TSL2591 found !");
     configureLumSensor();
@@ -383,17 +399,17 @@ int getMoisture() {
 void configureLumSensor(void)
 {
   // You can change the gain on the fly, to adapt to brighter/dimmer light situations
-  //tsl.setGain(TSL2591_GAIN_LOW);    // 1x gain (bright light)
-  tsl.setGain(TSL2591_GAIN_MED);      // 25x gain
-  //tsl.setGain(TSL2591_GAIN_HIGH);   // 428x gain
+  tsl.setGain(TSL2591_GAIN_LOW);    // 1x gain (bright light)
+  //tsl.setGain(TSL2591_GAIN_MED);      // 25x gain
+  // tsl.setGain(TSL2591_GAIN_HIGH);   // 428x gain
  
   // Changing the integration time gives you a longer time over which to sense light
   // longer timelines are slower, but are good in very low light situtations!
   //tsl.setTiming(TSL2591_INTEGRATIONTIME_100MS);  // shortest integration time (bright light)
   // tsl.setTiming(TSL2591_INTEGRATIONTIME_200MS);
-  tsl.setTiming(TSL2591_INTEGRATIONTIME_300MS);
+  // tsl.setTiming(TSL2591_INTEGRATIONTIME_300MS);
   // tsl.setTiming(TSL2591_INTEGRATIONTIME_400MS);
-  // tsl.setTiming(TSL2591_INTEGRATIONTIME_500MS);
+  tsl.setTiming(TSL2591_INTEGRATIONTIME_500MS);
   // tsl.setTiming(TSL2591_INTEGRATIONTIME_600MS);  // longest integration time (dim light)
  
   /* Display the gain and integration time for reference sake */  
@@ -415,11 +431,6 @@ void configureLumSensor(void)
       Logger.Info("9876x (Max)");
       break;
   }
-  Logger.Info("Timing:       ");
-  Serial.print((tsl.getTiming() + 1) * 100, DEC); 
-  Serial.println(F(" ms"));
-  Serial.println(F("------------------------------------"));
-  Serial.println(F(""));
 }
 
 void wifiSetup(std::string ssid, std::string password) {
@@ -480,7 +491,7 @@ void listNetworks() {
 }
 
 void eraseMemory() {
-  createBlinkGreenTask();
+  createBlinkGreenTask(100);
   Logger.Warning("********************SELF DESTRUCT MODE ENGAGED********************");
   delay(500);
   const int lastIndex = _ssid.length() + _password.length();
@@ -491,11 +502,7 @@ void eraseMemory() {
     Logger.Warning(statusStr.c_str());
   }
   EEPROM.commit();
-  delay(500);
-  Logger.Warning("********************SOULPOT_ANALYZER 0S Rebooting...**************");
-  delay(500);
-  Logger.Warning("********************SOULPOT_ANALYZER 0S Bye.**********************");
-  ESP.restart();
+  restart();
 }
 
 void saveConfigEEPROM() {
@@ -555,17 +562,24 @@ void readConfig() {
 }
 
 void bluetoothSetup() {
+  if (pServer != nullptr) {
+    Logger.Warning("Destroying previous BLE Server");
+    pServer->getAdvertising()->stop();
+    BLEDevice::deinit(true);
+    delete pServer;
+    delete bmeService;
+    delete pAdvertising;
+  }
   BLEDevice::init(DEVICE_NAME);
-  BLEServer *pServer = BLEDevice::createServer();
+  pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
-  BLEService *bmeService = pServer->createService(SERVICE_UUID);
+  bmeService = pServer->createService(SERVICE_UUID);
   bmeService->addCharacteristic(&wifiParamChar);
   wifiParamCharDesc.setValue("SP Wifi Config");
   wifiParamChar.addDescriptor(&wifiParamCharDesc);
   wifiParamChar.setCallbacks(new MyCharacteristicCallbacks());
-  // wifiParamCharDesc.addDescriptor(new BLE2902());
   bmeService->start();
-  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pServer->getAdvertising()->start();
   Logger.Info("Waiting for a client to notify...");
@@ -638,17 +652,19 @@ float getTemperature() {
   return sensors.getTempCByIndex(0);
 }
 
-void greenBlink(void * pvParameters) {
+void greenBlink(void* pvParameters) {
   for(;;){
     digitalWrite(greenLed, HIGH);
+    // delay(*((int*)pvParameters));
     delay(500);
     digitalWrite(greenLed, LOW);
+    // delay(*((int*)pvParameters));
     delay(500);
   } 
 }
 
-void createBlinkGreenTask() {
-  xTaskCreatePinnedToCore(greenBlink, "greenBlink", 10000, NULL, 0, &greenBlinkTask, 0);
+void createBlinkGreenTask(int blinkDelay) {
+  xTaskCreatePinnedToCore(greenBlink, "greenBlink", 10000, (void*)&blinkDelay, 0, &greenBlinkTask, 0);
 }
 
 void stopGreenBlink() {
@@ -667,7 +683,7 @@ void manageButtonPress() {
     nbPressed++;
     if (pressDuration > RESET_PRESS_TIME) {
       eraseMemory();
-    } else if (pressDuration < SHORT_PRESS_TIME) {
+    } else if (pressDuration < SHORT_PRESS_TIME && pressDuration > 200) {
       Logger.Debug(std::to_string(currentState).c_str());
       Logger.Debug(std::to_string(pressDuration).c_str());
       restart();
@@ -678,7 +694,9 @@ void manageButtonPress() {
 }
 
 void restart() {
-  Logger.Info("Rebooting analyzer...bye");
+  Logger.Warning("********************SOULPOT_ANALYZER OS Rebooting...********************");
+  delay(500);
+  Logger.Warning("********************SOULPOT_ANALYZER OS Bye !***************************");
   ESP.restart();
 }
 
@@ -687,14 +705,14 @@ void setup() {
   pinMode(redLed, OUTPUT);
   pinMode(greenLed, OUTPUT);
   pinMode(buttonBus, INPUT_PULLUP);
-  createBlinkGreenTask();
+  createBlinkGreenTask(500);
   Logger.Warning("********************SOULPOT_ANALYZER OS Booting...********************");
   // listNetworks();
   EEPROM.begin(200);
   readConfig();
   // TMP
-  // _ssid = "uifeedu75";
-  // _password = "mandalorianBGdu75zedzedze";
+  //_ssid = "uifeedu75";
+  //_password = "mandalorianBGdu75";
   // END TMP
   if (_ssid.length() > 0 && _password.length() > 0) {
     Logger.Info("Already config, with:");
@@ -708,7 +726,7 @@ void setup() {
         //connexion à azure
         Logger.Info("Azure connection...");
         establishConnection();
-        sensors.begin(); // comment if no sensors connected
+        initializeSensors();
         pinMode(relayBus, OUTPUT);
         stopGreenBlink();
     }
@@ -729,11 +747,10 @@ void loop() {
     initializeMqttClient();
   } else if (millis() > next_data_send_time_ms) {
     Logger.Info("Pushing data to hub...");
-    createBlinkGreenTask();
+    createBlinkGreenTask(100);
     sendData();
     next_data_send_time_ms = millis() + 15000;
     stopGreenBlink();
   }
-
   manageButtonPress();
 }
