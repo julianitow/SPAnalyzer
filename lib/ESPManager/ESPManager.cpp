@@ -1,0 +1,72 @@
+#include "ESPManager.h"
+
+ESPManager::ESPManager() {
+    Logger.Info("Hello from ESP Manager");
+    Serial.begin(115200);
+    EEPROM.begin(200);
+}
+
+bool ESPManager::isConfig() {
+    int size;
+    this->readEEPROM(&size, 0);
+    if (size == 255 || size == 0) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+void ESPManager::restart() {
+    Logger.Warning("********************SOULPOT_ANALYZER OS Rebooting...********************");
+    delay(500);
+    Logger.Warning("********************SOULPOT_ANALYZER OS Bye !***************************");
+    ESP.restart();
+}
+
+void ESPManager::reset() {
+    Logger.Warning("********************SELF DESTRUCT MODE ENGAGED********************");
+    delay(500);
+    //const int lastIndex = _ssid.length() + _password.length();
+    for (int i = 0; i < this->lastIndex; i++) {
+        EEPROM.write(i, 0);
+        int status = (i / this->lastIndex * 100);
+        std::string statusStr = "********************SOULPOT_ANALYZER 0S Erasing..." + std::to_string(status) + "****************";
+        Logger.Warning(statusStr.c_str());
+    }
+    EEPROM.commit();
+}
+
+void ESPManager::saveEEPROM(std::string data) {
+    int len = data.length();
+    // writing size of element to memory
+    EEPROM.write(this->lastIndex, len);
+    int firstIndex = this->lastIndex + 1;
+
+    for (int i = 0; i < len + 1; i++) {
+        EEPROM.write(firstIndex + i, data[i]);
+        this->lastIndex++;
+    }
+
+    if (EEPROM.commit()) {
+        Logger.Debug("Save sucess !");
+    } else {
+        Logger.Error("Failed to save in EEPROM!");
+    }
+}
+
+void ESPManager::readEEPROM(int* target, int offset) {
+    Logger.Info("Reading EEPROM...");
+    int data;
+    data = EEPROM.read(offset);
+    *target = data;
+}
+
+std::string ESPManager::readEEPROM(int offset, int len) {
+    Logger.Info("Reading EEPROM...");
+    char data[len + 1];
+    for (int i = 0; i < len + 1; i++) {
+        data[i] = EEPROM.read(offset + i);
+    }
+    data[len] = '\0';
+    return std::string(data);
+}
