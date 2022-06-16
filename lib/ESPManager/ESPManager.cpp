@@ -2,6 +2,7 @@
 
 ESPManager::ESPManager() {
     Logger.Info("Hello from ESP Manager");
+    this->globalState = ANALYZER_PAIRING;
     Serial.begin(115200);
     EEPROM.begin(200);
 }
@@ -14,6 +15,14 @@ bool ESPManager::isConfig() {
     } else {
         return true;
     }
+}
+
+void ESPManager::setGlobalState(GlobalState state) {
+    this->globalState = state;
+}
+
+GlobalState ESPManager::getGlobalState() {
+    return this->globalState;
 }
 
 void ESPManager::restart() {
