@@ -1,6 +1,7 @@
 #include "ESPManager.h"
 
 ESPManager::ESPManager() {
+    Logger.Warning("********************SPA Firmware Starting...********************");
     Logger.Info("Hello from ESP Manager");
     this->globalState = ANALYZER_PAIRING;
     Serial.begin(115200);

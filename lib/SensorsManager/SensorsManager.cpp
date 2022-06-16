@@ -1,5 +1,6 @@
 #include "SensorsManager.h"
 #include "SerialLogger.h"
+TaskHandle_t SensorsManager::greenBlinkTask = nullptr;
 
 SensorsManager::SensorsManager() {
     Logger.Info("Hello from SensorsManager");
@@ -92,8 +93,16 @@ void SensorsManager::configureLumSensor() {
         break;
     }
 }
+void SensorsManager::startBlink(int blinkDelay) {
+  xTaskCreatePinnedToCore(startGreenBlink, "greenBlink", 10000, (void*)&blinkDelay, 0, &greenBlinkTask, 0);
+}
 
-void SensorsManager::greenBlink(void* pvParameters) {
+void SensorsManager::stopBlink() {
+  vTaskDelete(this->greenBlinkTask);
+  this->stopBlink();
+}
+
+void SensorsManager::startGreenBlink(void* pvParameters) {
   for(;;){
     digitalWrite(GREENLED, HIGH);
     // delay(*((int*)pvParameters));
@@ -104,6 +113,6 @@ void SensorsManager::greenBlink(void* pvParameters) {
   } 
 }
 
-void SensorsManager::stopBlink() {
+void SensorsManager::stopGreenBlink() {
   digitalWrite(GREENLED, LOW);
 }

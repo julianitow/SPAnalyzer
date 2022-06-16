@@ -18,6 +18,7 @@ class WiFiManager {
     static WiFiManager* getInstance();
     void config(std::string, std::string, int = 10000);
     bool connect();
+    bool isConnected();
 };
 
 #endif

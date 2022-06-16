@@ -29,7 +29,7 @@ class AzureIot {
     static char mqtt_password[200];
     static uint8_t sas_signature_buffer[256];
     static unsigned long next_data_send_time_ms;
-    static char analyzer_topic[TOPIC_SIZE];
+    static char topic[TOPIC_SIZE];
     static uint32_t payload_send_count;
     static char incoming_data[INCOMING_DATA_BUFFER_SIZE];
     static uint8_t payload[PAYLOAD_SIZE];
@@ -46,10 +46,13 @@ class AzureIot {
     static void initializeIoTHubClient();
     static int initializeMqttClient();
     static uint32_t getEpochTimeInSecs();
+    static void destroyMqtt();
     static void establishConnection();
     static void getPayload(az_span, az_span*);
     static az_span constructDataPayload();
-    void sendData();
+    static void sendData();
+    static bool tokenExpired();
+    static bool time2send();
 };
 
 #endif

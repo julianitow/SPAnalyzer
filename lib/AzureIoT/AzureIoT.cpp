@@ -13,6 +13,11 @@ char AzureIot::mqtt_password[200];
 char AzureIot::incoming_data[INCOMING_DATA_BUFFER_SIZE];
 uint8_t AzureIot::sas_signature_buffer[256];
 AzIoTSasToken* AzureIot::sasToken = nullptr;
+unsigned long AzureIot::next_data_send_time_ms = 0;
+uint32_t AzureIot::payload_send_count = 0;
+uint8_t AzureIot::payload[PAYLOAD_SIZE];
+struct tm* AzureIot::ptm = nullptr;
+char AzureIot::topic[TOPIC_SIZE];
 
 void AzureIot::init(SensorsManager* sensorsManager) {
     AzureIot::sensorsManager = sensorsManager;
@@ -194,6 +199,11 @@ int AzureIot::initializeMqttClient() {
 uint32_t AzureIot::getEpochTimeInSecs() {
     return (uint32_t)time(NULL);
 }
+
+void AzureIot::destroyMqtt() {
+    (void)esp_mqtt_client_destroy(mqtt_client);
+}
+
 void AzureIot::establishConnection() {
     AzureIot::sasToken = new AzIoTSasToken(&client, AZ_SPAN_FROM_STR(IOT_CONFIG_DEVICE_KEY),AZ_SPAN_FROM_BUFFER(sas_signature_buffer), AZ_SPAN_FROM_BUFFER(mqtt_password));
     initializeTime();
@@ -231,7 +241,7 @@ az_span AzureIot::constructDataPayload() {
 void AzureIot::sendData() {
     az_span data = AZ_SPAN_FROM_BUFFER(payload);
     if (az_result_failed(az_iot_hub_client_telemetry_get_publish_topic(
-            &client, NULL, analyzer_topic, sizeof(analyzer_topic), NULL)))
+            &client, NULL, topic, sizeof(topic), NULL)))
     {
         Logger.Error("Failed az_iot_hub_client_telemetry_get_publish_topic");
         return;
@@ -241,7 +251,7 @@ void AzureIot::sendData() {
     Logger.Info("Payload construction: success");
     if (esp_mqtt_client_publish(
             mqtt_client,
-            analyzer_topic,
+            topic,
             (const char*)az_span_ptr(data),
             az_span_size(data),
             MQTT_QOS1,
@@ -254,4 +264,13 @@ void AzureIot::sendData() {
     {
         Logger.Info("Message published successfully");
     }
+    next_data_send_time_ms = millis() + 15000;
+}
+
+bool AzureIot::tokenExpired() {
+    return AzureIot::sasToken->IsExpired();
+}
+
+bool AzureIot::time2send() {
+    return millis() > AzureIot::next_data_send_time_ms;
 }

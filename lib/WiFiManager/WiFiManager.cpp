@@ -43,3 +43,10 @@ bool WiFiManager::connect() {
     Serial.println(WiFi.localIP());
     return true;
 }
+
+bool WiFiManager::isConnected() {
+    if (WiFi.status() != WL_CONNECTED) {
+        return false;
+    }
+    return true;
+}

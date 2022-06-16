@@ -19,9 +19,11 @@ class SensorsManager {
     OneWire oneWire;
     DallasTemperature dallasTemp;
     Adafruit_TSL2591 tsl;
-    
+    static TaskHandle_t greenBlinkTask;
     void configureLumSensor();
-    
+    static void startGreenBlink(void* pvParameters);
+    void stopGreenBlink();
+
     public:
     SensorsManager();
     void initialiseSensors();
@@ -31,7 +33,7 @@ class SensorsManager {
     float getTemperature();
     DallasTemperature getDallasSensor();
     Adafruit_TSL2591 getTSL();
-    static void greenBlink(void* pvParameters);
+    void startBlink(int);
     static void initLed();
     void stopBlink();
 };
