@@ -49,7 +49,14 @@ float SensorsManager::getLux() {
 
 int SensorsManager::getMoisture() {
     const unsigned short int value = analogRead(MOISTURE);
-    const unsigned short int percentage = 100 - (((value - MIN_MOISTURE_VAL) * 100) / (MAX_MOISTURE_VAL - MIN_MOISTURE_VAL));
+    unsigned short int percentage = 100 - (((value - MIN_MOISTURE_VAL) * 100) / (MAX_MOISTURE_VAL - MIN_MOISTURE_VAL));
+    /**
+     * @brief due to no fixed values for min and max
+     * the percentage could be above 100 by 1 or 2
+     */
+    if (percentage > 100) {
+      percentage = 100;
+    }
     return percentage;
 }
 
