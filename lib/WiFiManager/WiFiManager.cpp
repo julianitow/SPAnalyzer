@@ -33,8 +33,8 @@ bool WiFiManager::connect() {
         Serial.print(".");
         unsigned long now = millis();
         if (now - begin > timeout) {
-        Logger.Error("Timeout while trying to connect to WiFi");
-        return false;
+            Logger.Error("Timeout while trying to connect to WiFi");
+            return false;
         }
         delay(1000);
     }
