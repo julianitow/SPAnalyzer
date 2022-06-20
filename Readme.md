@@ -10,3 +10,4 @@ Deux options, soit reconstruire le code avec PlatformIO. Soit télécharger le f
 
 >***Warning***
 >Use the file `min_spliffs.csv` to partition the board before uploading the firmware
+>Don't forget to change the device id in `include/iot_configs.h` to match to the device id on azure iot hub
