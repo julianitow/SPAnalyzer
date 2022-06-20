@@ -1,5 +1,7 @@
 #ifndef SENSORS_MANAGER_H
 #define SENSORS_MANAGER_H
+
+#include "../../include/iot_configs.h"
 // temperature sensor
 #include <OneWire.h>
 #include <DallasTemperature.h>

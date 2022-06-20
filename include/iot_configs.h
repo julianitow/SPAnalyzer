@@ -39,6 +39,10 @@
 #define CHAR_UUID "96c44fd5-c309-4553-a11e-b8457810b94c"
 #define DESC_UUID "544bd464-8388-42aa-99cd-81cf6e6042d7"
 
+// Moisture
+#define MIN_MOISTURE_VAL 1720
+#define MAX_MOISTURE_VAL 2115
+
 // EEPROM 1st case addr
 #define EEPROM_ADDR 0
 
