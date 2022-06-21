@@ -3,6 +3,7 @@
 
 // Additional sample headers #include "inc/AzIoTSasToken.h"
 #include "AzIoTSasToken.h"
+#include "ESPManager.h"
 #include "SerialLogger.h"
 #include "SensorsManager.h"
 #include "../../include/iot_configs.h"

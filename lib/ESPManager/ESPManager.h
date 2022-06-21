@@ -10,7 +10,7 @@
 class ESPManager {
 
     private:
-    int lastIndex = 0;
+    static int lastIndex;
     GlobalState globalState;
 
     public:
@@ -18,8 +18,8 @@ class ESPManager {
     bool isConfig();
     void setGlobalState(GlobalState);
     GlobalState getGlobalState();
-    void restart();
-    void reset();
+    static void restart();
+    static void reset();
     void saveEEPROM(std::string);
     void readEEPROM(int*, int offset);
     std::string readEEPROM(int, int);
