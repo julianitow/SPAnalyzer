@@ -46,7 +46,7 @@ void manageButtonPress() {
     nbPressed++;
     if (pressDuration > RESET_PRESS_TIME) {
       espManager->reset();
-    } else if (pressDuration < SHORT_PRESS_TIME && pressDuration > 200) {
+    } else if (pressDuration < SHORT_PRESS_TIME) {
       Logger.Debug(std::to_string(currentState).c_str());
       Logger.Debug(std::to_string(pressDuration).c_str());
       espManager->restart();

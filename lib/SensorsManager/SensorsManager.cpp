@@ -5,7 +5,7 @@ SensorsManager::SensorsManager() {
     Logger.Info("Hello from SensorsManager");
     pinMode(GREENLED, OUTPUT);
     pinMode(RELAY, OUTPUT);
-
+    pinMode(BUTTON, INPUT_PULLUP);
     this->oneWire = OneWire(ONEWIRE);
     this->dallasTemp = DallasTemperature(&oneWire);
     this->tsl = Adafruit_TSL2591(2591);
@@ -29,12 +29,17 @@ Adafruit_TSL2591 SensorsManager::getTSL() {
   return this->tsl;
 }
 
-void SensorsManager::sprink(bool status) {
+void SensorsManager::sprink(bool status, int val) {
   if (status) {
     Logger.Debug("SPRINK");
     digitalWrite(RELAY, HIGH);
+    while (this->getMoisture() < val) {
+      Logger.Info("Sprinkling...");
+      delay(500);
+    }
+    this->sprink(false, val);
   } else {
-    Logger.Debug("NOT SPRINK");
+    Logger.Debug("STOP SPRINK");
     digitalWrite(RELAY, LOW);
   }
 }
@@ -67,8 +72,8 @@ float SensorsManager::getTemperature() {
 
 void SensorsManager::configureLumSensor() {
     // You can change the gain on the fly, to adapt to brighter/dimmer light situations
-    this->tsl.setGain(TSL2591_GAIN_LOW);    // 1x gain (bright light)
-    //tsl.setGain(TSL2591_GAIN_MED);      // 25x gain
+    // this->tsl.setGain(TSL2591_GAIN_LOW);    // 1x gain (bright light)
+    tsl.setGain(TSL2591_GAIN_MED);      // 25x gain
     // tsl.setGain(TSL2591_GAIN_HIGH);   // 428x gain
 
     // Changing the integration time gives you a longer time over which to sense light
@@ -77,8 +82,8 @@ void SensorsManager::configureLumSensor() {
     // tsl.setTiming(TSL2591_INTEGRATIONTIME_200MS);
     // tsl.setTiming(TSL2591_INTEGRATIONTIME_300MS);
     // tsl.setTiming(TSL2591_INTEGRATIONTIME_400MS);
-    this->tsl.setTiming(TSL2591_INTEGRATIONTIME_500MS);
-    // tsl.setTiming(TSL2591_INTEGRATIONTIME_600MS);  // longest integration time (dim light)
+    // this->tsl.setTiming(TSL2591_INTEGRATIONTIME_500MS);
+    tsl.setTiming(TSL2591_INTEGRATIONTIME_600MS);  // longest integration time (dim light)
 
     /* Display the gain and integration time for reference sake */  
     Logger.Info("------------------------------------");

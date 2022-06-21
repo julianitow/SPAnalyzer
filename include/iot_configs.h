@@ -43,6 +43,13 @@
 #define MIN_MOISTURE_VAL 1720
 #define MAX_MOISTURE_VAL 2115
 
+// Sensors buses
+#define GREENLED 23
+#define ONEWIRE 33
+#define RELAY 26
+#define MOISTURE 34
+#define BUTTON 35
+
 // EEPROM 1st case addr
 #define EEPROM_ADDR 0
 

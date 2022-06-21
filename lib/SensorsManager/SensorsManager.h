@@ -11,11 +11,6 @@
 #include <Adafruit_Sensor.h>
 #include "Adafruit_TSL2591.h"
 
-#define GREENLED 23
-#define ONEWIRE 33
-#define RELAY 26
-#define MOISTURE 34
-
 class SensorsManager {
     private:
     OneWire oneWire;
@@ -28,7 +23,7 @@ class SensorsManager {
     public:
     SensorsManager();
     void initialiseSensors();
-    void sprink(bool);
+    void sprink(bool, int);
     float getLux();
     int getMoisture();
     float getTemperature();
