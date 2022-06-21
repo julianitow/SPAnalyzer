@@ -110,16 +110,32 @@ esp_err_t AzureIot::mqtt_event_handler(esp_mqtt_event_handle_t event) {
 }
 void AzureIot::incomingDataFilter() {
     std::string data(incoming_data);
-    std::string propName = data.substr(0, data.find(":"));
-    propName = data.substr(data.find("{") + 2, propName.length() - 3);
-    if (propName == "sprinkle") {
-        std::string propVal = data.substr(data.find(":") + 2, data.length() - 1);
-        propVal = propVal.substr(0, propVal.find("}") - 1);
-        if (propVal == "true") {
-        sensorsManager->sprink(true);
-        } else {
-        sensorsManager->sprink(false);
+    std::string prop1 = data.substr(1, data.find(",") - 1);
+    std::string prop2 = data.substr(prop1.length() + 2, data.length() - 2);
+    prop1 = prop1.substr(1, prop1.length() - 2);
+    prop2 = prop2.substr(1, prop2.length() - 2);
+    std::string val1 = prop1.substr(prop1.find(":") + 2, prop1.length());
+    prop1 = prop1.substr(0, prop1.find(":") - 1);
+
+    std::string val2 = prop2.substr(prop2.find(":") + 2, prop2.length() - 1);
+    val2 = val2.substr(0, val2.length() - 1);
+    prop2 = prop2.substr(0, prop2.find(":") - 1);
+
+    int size = 2;
+    std::string props[size] = {prop1, prop2};
+    std::string values[size] = {val1, val2};
+
+    int value;
+    bool sprinkle;
+    for (int i = 0; i < size; i++) {
+        if (props[i] == "sprinkle") {
+            sprinkle = values[i] == "true" ? true : false;
+        } else if (props[i] == "expectedValue") {
+            value = std::stoi(values[i]);
         }
+    }
+    if (value != NULL && sprinkle != NULL) {
+        sensorsManager->sprink(sprinkle, value);
     }
 }
 void AzureIot::initializeIoTHubClient() {
