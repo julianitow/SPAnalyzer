@@ -95,8 +95,8 @@ void BLEOnWriteCB(BLECharacteristic* pCharacteristic) {
     if (wifiManager->connect()) {
       espManager->saveEEPROM(ssid);
       espManager->saveEEPROM(password);
+      espManager->restart();
     }
-    espManager->restart();
  }
 
 void initBLE() {
@@ -135,6 +135,7 @@ void setup() {
       espManager->saveEEPROM(password);
       startAzure();
       sensorsManager->stopBlink();
+      espManager->isReady = true;
     } else {
       bleManager->startAdvertising();
     }
@@ -171,20 +172,21 @@ void setup() {
 }
 
 void loop() {
-  if (!wifiManager->isConnected()) {
+  if (!espManager->isReady) {
     
-  }
-  else if (AzureIot::tokenExpired()) {
-    Logger.Info("SAS token expired; reconnecting with a new one.");
-    sensorsManager->startBlink(100);
-    AzureIot::destroyMqtt();
-    AzureIot::establishConnection();
-    sensorsManager->stopBlink();
-  } else if (AzureIot::time2send()) {
-    Logger.Info("Pushing data to hub...");
-    sensorsManager->startBlink(100);
-    AzureIot::sendData();
-    sensorsManager->stopBlink();
+  } else if (espManager->isReady) {
+    if (AzureIot::tokenExpired()) {
+      Logger.Info("SAS token expired; reconnecting with a new one.");
+      sensorsManager->startBlink(100);
+      AzureIot::destroyMqtt();
+      AzureIot::establishConnection();
+      sensorsManager->stopBlink();
+    } else if (AzureIot::time2send()) {
+      Logger.Info("Pushing data to hub...");
+      sensorsManager->startBlink(100);
+      AzureIot::sendData();
+      sensorsManager->stopBlink();
+    }
   }
   manageButtonPress();
 }

@@ -23,6 +23,7 @@ class ESPManager {
     void saveEEPROM(std::string);
     void readEEPROM(int*, int offset);
     std::string readEEPROM(int, int);
+    bool isReady = false;
 };
 
 #endif

@@ -45,8 +45,5 @@ bool WiFiManager::connect() {
 }
 
 bool WiFiManager::isConnected() {
-    if (WiFi.status() != WL_CONNECTED) {
-        return false;
-    }
-    return true;
+    return WiFi.status() == WL_CONNECTED;
 }

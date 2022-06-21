@@ -297,7 +297,10 @@ void AzureIot::sendData() {
 }
 
 bool AzureIot::tokenExpired() {
-    return AzureIot::sasToken->IsExpired();
+    if (AzureIot::sasToken != nullptr) {
+        return AzureIot::sasToken->IsExpired();
+    }
+    return false;
 }
 
 bool AzureIot::time2send() {
