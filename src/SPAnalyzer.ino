@@ -46,10 +46,10 @@ void manageButtonPress() {
     nbPressed++;
     if (pressDuration > RESET_PRESS_TIME) {
       espManager->reset();
-    } else if (pressDuration < SHORT_PRESS_TIME) {
+    } else if (pressDuration > 300 && pressDuration < RESET_PRESS_TIME) {
       Logger.Debug(std::to_string(currentState).c_str());
       Logger.Debug(std::to_string(pressDuration).c_str());
-      espManager->restart();
+      // espManager->restart();
     }
   }
   lastState = currentState;
@@ -62,14 +62,16 @@ void manageButtonPress() {
 
 void BLEOnReadCB(BLECharacteristic* pCharacteristic) {
     Serial.println("onRead triggered");
-    if (espManager->getGlobalState() == ANALYZER_OK) {
+    int state = ESPManager::getGlobalState();
+    if (state == ANALYZER_OK) {
       pCharacteristic->setValue(IOT_CONFIG_DEVICE_ID);
     } else {
-      pCharacteristic->setValue(std::to_string(espManager->getGlobalState()).c_str());
+      pCharacteristic->setValue(state);
     }
  }
 
 void BLEOnWriteCB(BLECharacteristic* pCharacteristic) {
+    ESPManager::setGlobalState(ANALYZER_PAIRING);
     Logger.Info("received: ");
     Logger.Info(pCharacteristic->getValue().c_str());
     std::string value = pCharacteristic->getValue();
@@ -118,6 +120,7 @@ void setup() {
   std::string password;
 
   espManager = new ESPManager();
+  espManager->setGlobalState(ANALYZER_INIT);
   sensorsManager = new SensorsManager();
   wifiManager = WiFiManager::getInstance();
   sensorsManager->startBlink(500);
@@ -136,12 +139,12 @@ void setup() {
       startAzure();
       sensorsManager->stopBlink();
       espManager->isReady = true;
+      ESPManager::setGlobalState(ANALYZER_OK);
     } else {
-      bleManager->startAdvertising();
+      ESPManager::setGlobalState(ANALYZER_ERROR);
     }
-  } else {
-    bleManager->startAdvertising();
   }
+  bleManager->startAdvertising();
   /*pinMode(buttonBus, INPUT_PULLUP);
   createBlinkGreenTask(500);
 

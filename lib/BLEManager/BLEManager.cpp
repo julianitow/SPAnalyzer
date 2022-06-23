@@ -8,10 +8,12 @@ BLEManager::BLEManager() {
 void BLEManager::init() {
     if (this->characteristicCallbacks == nullptr) {
       Logger.Error("No BLE char callbacks set");
+      ESPManager::setGlobalState(ANALYZER_ERROR);
       return;
     }
     if (this->serverCallbacks == nullptr) {
       Logger.Error("No BLE server callbacks set");
+      ESPManager::setGlobalState(ANALYZER_ERROR);
       return;
     }
     BLEDevice::init(DEVICE_NAME);

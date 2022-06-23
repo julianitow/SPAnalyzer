@@ -1,5 +1,6 @@
 #include "ESPManager.h"
 int ESPManager::lastIndex = 0;
+GlobalState ESPManager::globalState = ANALYZER_ERROR;
 
 ESPManager::ESPManager() {
     Logger.Warning("********************SPA Firmware Starting...********************");
@@ -21,11 +22,11 @@ bool ESPManager::isConfig() {
 }
 
 void ESPManager::setGlobalState(GlobalState state) {
-    this->globalState = state;
+    ESPManager::globalState = state;
 }
 
 GlobalState ESPManager::getGlobalState() {
-    return this->globalState;
+    return ESPManager::globalState;
 }
 
 void ESPManager::restart() {

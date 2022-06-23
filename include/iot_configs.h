@@ -48,10 +48,10 @@
 #define ONEWIRE 33
 #define RELAY 26
 #define MOISTURE 34
-#define BUTTON 35
+#define BUTTON 36
 
 // EEPROM 1st case addr
 #define EEPROM_ADDR 0
 
-enum GlobalState { ANALYZER_OK, ANALYZER_PAIRING, ANALYZER_ERROR };
+enum GlobalState { ANALYZER_OK, ANALYZER_INIT, ANALYZER_PAIRING, ANALYZER_ERROR = -1 };
 #endif

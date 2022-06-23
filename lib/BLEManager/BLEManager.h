@@ -7,6 +7,7 @@
 #include <BLE2902.h>
 
 #include "../../include/iot_configs.h"
+#include "ESPManager.h"
 #include "BLEServerCallbacks.h"
 #include "BLECharacteristicCallbacks.h"
 

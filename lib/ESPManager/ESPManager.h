@@ -11,13 +11,13 @@ class ESPManager {
 
     private:
     static int lastIndex;
-    GlobalState globalState;
+    static GlobalState globalState;
 
     public:
     ESPManager();
     bool isConfig();
-    void setGlobalState(GlobalState);
-    GlobalState getGlobalState();
+    static void setGlobalState(GlobalState);
+    static GlobalState getGlobalState();
     static void restart();
     static void reset();
     void saveEEPROM(std::string);
