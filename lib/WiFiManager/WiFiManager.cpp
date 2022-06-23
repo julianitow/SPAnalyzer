@@ -3,7 +3,7 @@ WiFiManager* WiFiManager::instance = nullptr;
 
 WiFiManager::WiFiManager() {
     Logger.Info("Hello from WiFiManager");
-    WiFi.setHostname(DEVICE_NAME);
+    WiFi.setHostname(IOT_CONFIG_DEVICE_ID);
     WiFi.mode(WIFI_STA);
 }
 

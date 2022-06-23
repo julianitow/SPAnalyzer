@@ -36,6 +36,7 @@ void AzureIot::initializeTime() {
     Serial.println("");
     Logger.Info("Time initialized!");
 }
+
 void AzureIot::receivedCallback(char* topic, byte* payload, unsigned int length) {
     Logger.Info("Received [");
     Logger.Info(topic);
@@ -46,68 +47,70 @@ void AzureIot::receivedCallback(char* topic, byte* payload, unsigned int length)
     }
     Serial.println("");
 }
+
 esp_err_t AzureIot::mqtt_event_handler(esp_mqtt_event_handle_t event) {
     switch (event->event_id)
     {
         int i, r;
 
         case MQTT_EVENT_ERROR:
-        Logger.Info("MQTT event MQTT_EVENT_ERROR");
+            Logger.Info("MQTT event MQTT_EVENT_ERROR");
         break;
-        case MQTT_EVENT_CONNECTED:
-        Logger.Info("MQTT event MQTT_EVENT_CONNECTED");
+            case MQTT_EVENT_CONNECTED:
+            Logger.Info("MQTT event MQTT_EVENT_CONNECTED");
 
-        r = esp_mqtt_client_subscribe(mqtt_client, AZ_IOT_HUB_CLIENT_C2D_SUBSCRIBE_TOPIC, 1);
-        if (r == -1)
-        {
-            Logger.Error("Could not subscribe for cloud-to-device messages.");
-        }
-        else
-        {
-            Logger.Info("Subscribed for cloud-to-device messages; message id:"  + String(r));
-        }
+            r = esp_mqtt_client_subscribe(mqtt_client, AZ_IOT_HUB_CLIENT_C2D_SUBSCRIBE_TOPIC, 1);
+            if (r == -1)
+            {
+                Logger.Error("Could not subscribe for cloud-to-device messages.");
+            }
+            else
+            {
+                Logger.Info("Subscribed for cloud-to-device messages; message id:"  + String(r));
+            }
 
         break;
-        case MQTT_EVENT_DISCONNECTED:
-        Logger.Info("MQTT event MQTT_EVENT_DISCONNECTED");
+            case MQTT_EVENT_DISCONNECTED:
+            Logger.Info("MQTT event MQTT_EVENT_DISCONNECTED");
         break;
-        case MQTT_EVENT_SUBSCRIBED:
-        Logger.Info("MQTT event MQTT_EVENT_SUBSCRIBED");
+            case MQTT_EVENT_SUBSCRIBED:
+            Logger.Info("MQTT event MQTT_EVENT_SUBSCRIBED");
         break;
-        case MQTT_EVENT_UNSUBSCRIBED:
-        Logger.Info("MQTT event MQTT_EVENT_UNSUBSCRIBED");
+            case MQTT_EVENT_UNSUBSCRIBED:
+            Logger.Info("MQTT event MQTT_EVENT_UNSUBSCRIBED");
         break;
-        case MQTT_EVENT_PUBLISHED:
-        Logger.Info("MQTT event MQTT_EVENT_PUBLISHED");
+            case MQTT_EVENT_PUBLISHED:
+            Logger.Info("MQTT event MQTT_EVENT_PUBLISHED");
         break;
-        case MQTT_EVENT_DATA:
-        Logger.Info("MQTT event MQTT_EVENT_DATA");
+            case MQTT_EVENT_DATA:
+            Logger.Info("MQTT event MQTT_EVENT_DATA");
 
-        for (i = 0; i < (INCOMING_DATA_BUFFER_SIZE - 1) && i < event->topic_len; i++)
-        {
-            incoming_data[i] = event->topic[i]; 
-        }
-        incoming_data[i] = '\0';
-        Logger.Info("Topic: " + String(incoming_data));
-        
-        for (i = 0; i < (INCOMING_DATA_BUFFER_SIZE - 1) && i < event->data_len; i++)
-        {
-            incoming_data[i] = event->data[i]; 
-        }
-        incoming_data[i] = '\0';
-        Logger.Info("Data: " + String(incoming_data));
-        incomingDataFilter();
-        break;
+            for (i = 0; i < (INCOMING_DATA_BUFFER_SIZE - 1) && i < event->topic_len; i++)
+            {
+                incoming_data[i] = event->topic[i]; 
+            }
+            incoming_data[i] = '\0';
+            Logger.Info("Topic: " + String(incoming_data));
+            
+            for (i = 0; i < (INCOMING_DATA_BUFFER_SIZE - 1) && i < event->data_len; i++)
+            {
+                incoming_data[i] = event->data[i]; 
+            }
+            incoming_data[i] = '\0';
+            Logger.Info("Data: " + String(incoming_data));
+            incomingDataFilter();
+            break;
         case MQTT_EVENT_BEFORE_CONNECT:
-        Logger.Info("MQTT event MQTT_EVENT_BEFORE_CONNECT");
-        break;
+            Logger.Info("MQTT event MQTT_EVENT_BEFORE_CONNECT");
+            break;
         default:
-        Logger.Error("MQTT event UNKNOWN");
-        break;
+            Logger.Error("MQTT event UNKNOWN");
+            break;
     }
 
     return ESP_OK;
 }
+
 void AzureIot::incomingDataFilter() {
     std::string data(incoming_data);
     if (data.find(",") != std::string::npos) {
@@ -151,6 +154,7 @@ void AzureIot::incomingDataFilter() {
         }
     }
 }
+
 void AzureIot::initializeIoTHubClient() {
     az_iot_hub_client_options options = az_iot_hub_client_options_default();
     options.user_agent = AZ_SPAN_FROM_STR(AZURE_SDK_CLIENT_USER_AGENT);
@@ -183,6 +187,7 @@ void AzureIot::initializeIoTHubClient() {
     Logger.Info("Client ID: " + String(AzureIot::mqtt_client_id));
     Logger.Info("Username: " + String(AzureIot::mqtt_username));
 }
+
 int AzureIot::initializeMqttClient() {
     if (sasToken->Generate(SAS_TOKEN_DURATION_IN_MINUTES) != 0)
     {
@@ -225,6 +230,7 @@ int AzureIot::initializeMqttClient() {
         return 0;
     }
 }
+
 uint32_t AzureIot::getEpochTimeInSecs() {
     return (uint32_t)time(NULL);
 }
@@ -239,6 +245,7 @@ void AzureIot::establishConnection() {
     initializeIoTHubClient();
     (void)initializeMqttClient();
 }
+
 void AzureIot::getPayload(az_span payload, az_span* out_payload) {
     az_span original_payload = payload;
     payload = az_span_copy(
@@ -256,6 +263,7 @@ void AzureIot::getPayload(az_span payload, az_span* out_payload) {
 
     *out_payload = az_span_slice(original_payload, 0, az_span_size(original_payload) - az_span_size(payload));
 }
+
 az_span AzureIot::constructDataPayload() {
     time_t now = time(NULL);
     ptm = gmtime(&now);
@@ -267,7 +275,11 @@ az_span AzureIot::constructDataPayload() {
     az_span span = az_span_create_from_str((char*) payloadStr.c_str());
     return span;
 }
+
 void AzureIot::sendData() {
+    if (ESPManager::getGlobalState() == ANALYZER_ERROR) {
+        return;
+    }
     az_span data = AZ_SPAN_FROM_BUFFER(payload);
     if (az_result_failed(az_iot_hub_client_telemetry_get_publish_topic(
             &client, NULL, topic, sizeof(topic), NULL)))

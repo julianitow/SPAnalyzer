@@ -33,7 +33,8 @@ WiFiManager* wifiManager;
 
 void BLEOnReadCB(BLECharacteristic* pCharacteristic);
 void BLEOnWriteCB(BLECharacteristic* pCharacteristic);
-MyBLECharacteristicCallbacks* myBLECharacteristicCallbacks = new MyBLECharacteristicCallbacks(BLEOnReadCB, BLEOnWriteCB);MyBLEServerCallbacks* serverCallbacks = new MyBLEServerCallbacks();
+MyBLECharacteristicCallbacks* myBLECharacteristicCallbacks = new MyBLECharacteristicCallbacks(BLEOnReadCB, BLEOnWriteCB);
+MyBLEServerCallbacks* serverCallbacks = new MyBLEServerCallbacks();
 
 void manageButtonPress() {
   currentState = digitalRead(buttonBus);
@@ -63,11 +64,7 @@ void manageButtonPress() {
 void BLEOnReadCB(BLECharacteristic* pCharacteristic) {
     Serial.println("onRead triggered");
     int state = ESPManager::getGlobalState();
-    if (state == ANALYZER_OK) {
-      pCharacteristic->setValue(IOT_CONFIG_DEVICE_ID);
-    } else {
-      pCharacteristic->setValue(state);
-    }
+    pCharacteristic->setValue(state);
  }
 
 void BLEOnWriteCB(BLECharacteristic* pCharacteristic) {
@@ -177,7 +174,7 @@ void setup() {
 void loop() {
   if (!espManager->isReady) {
     
-  } else if (espManager->isReady) {
+  } else if (espManager->isReady && ESPManager::getGlobalState() == ANALYZER_OK) {
     if (AzureIot::tokenExpired()) {
       Logger.Info("SAS token expired; reconnecting with a new one.");
       sensorsManager->startBlink(100);

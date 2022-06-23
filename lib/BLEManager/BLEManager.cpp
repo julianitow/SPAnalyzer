@@ -16,7 +16,7 @@ void BLEManager::init() {
       ESPManager::setGlobalState(ANALYZER_ERROR);
       return;
     }
-    BLEDevice::init(DEVICE_NAME);
+    BLEDevice::init(IOT_CONFIG_DEVICE_ID);
     wifiParamChar = new BLECharacteristic(CHAR_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
     wifiParamCharDesc = new BLEDescriptor(DESC_UUID);
     this->pServer = BLEDevice::createServer();
