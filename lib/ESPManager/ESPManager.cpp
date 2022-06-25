@@ -1,6 +1,6 @@
 #include "ESPManager.h"
 int ESPManager::lastIndex = 0;
-GlobalState ESPManager::globalState = ANALYZER_ERROR;
+GlobalState ESPManager::globalState = ANALYZER_OK;
 
 ESPManager::ESPManager() {
     Logger.Warning("********************SPA Firmware Starting...********************");

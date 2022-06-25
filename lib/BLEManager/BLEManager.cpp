@@ -18,6 +18,7 @@ void BLEManager::init() {
     }
     BLEDevice::init(IOT_CONFIG_DEVICE_ID);
     wifiParamChar = new BLECharacteristic(CHAR_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
+    wifiParamChar->setWriteNoResponseProperty(true);
     wifiParamCharDesc = new BLEDescriptor(DESC_UUID);
     this->pServer = BLEDevice::createServer();
     this->pServer->setCallbacks(serverCallbacks);
