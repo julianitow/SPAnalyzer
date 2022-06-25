@@ -68,7 +68,6 @@ void BLEOnReadCB(BLECharacteristic* pCharacteristic) {
  }
 
 void BLEOnWriteCB(BLECharacteristic* pCharacteristic) {
-    ESPManager::setGlobalState(ANALYZER_PAIRING);
     Logger.Info("received: ");
     Logger.Info(pCharacteristic->getValue().c_str());
     std::string value = pCharacteristic->getValue();
@@ -117,7 +116,7 @@ void setup() {
   std::string password;
 
   espManager = new ESPManager();
-  espManager->setGlobalState(ANALYZER_INIT);
+  ESPManager::setGlobalState(ANALYZER_PAIRING);
   sensorsManager = new SensorsManager();
   wifiManager = WiFiManager::getInstance();
   sensorsManager->startBlink(500);

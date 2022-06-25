@@ -52,5 +52,5 @@
 // EEPROM 1st case addr
 #define EEPROM_ADDR 0
 
-enum GlobalState { ANALYZER_OK, ANALYZER_INIT, ANALYZER_PAIRING, ANALYZER_ERROR = -1 };
+enum GlobalState { ANALYZER_OK, ANALYZER_PAIRING, ANALYZER_ERROR = -1 };
 #endif
