@@ -71,6 +71,12 @@ void BLEOnWriteCB(BLECharacteristic* pCharacteristic) {
     Logger.Info("received: ");
     Logger.Info(pCharacteristic->getValue().c_str());
     std::string value = pCharacteristic->getValue();
+    
+    if (value == "reset") {
+      ESPManager::reset();
+      ESPManager::restart();
+    }
+
     int scIndex = 0;
     std::string ssid = "";
     std::string password = "";
@@ -94,6 +100,8 @@ void BLEOnWriteCB(BLECharacteristic* pCharacteristic) {
       espManager->saveEEPROM(ssid);
       espManager->saveEEPROM(password);
       espManager->restart();
+    } else {
+      ESPManager::setGlobalState(ANALYZER_ERROR);
     }
  }
 
