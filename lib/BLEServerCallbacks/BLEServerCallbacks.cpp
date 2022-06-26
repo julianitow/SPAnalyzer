@@ -7,7 +7,7 @@ void MyBLEServerCallbacks::onConnect(BLEServer* pServer) {
 void MyBLEServerCallbacks::onDisconnect(BLEServer* pServer) {
   Logger.Warning("Client disconnected");
   if (WiFi.status() != WL_CONNECTED) {
-    Logger.Warning("Restart bluetooth");
-    pServer->getAdvertising()->start();
+    Logger.Warning("Not connected");
   }
+  pServer->getAdvertising()->start();
 }
