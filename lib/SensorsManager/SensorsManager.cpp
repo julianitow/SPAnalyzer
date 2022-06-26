@@ -49,11 +49,15 @@ float SensorsManager::getLux() {
     uint16_t ir, full;
     ir = lum >> 16;
     full = lum & 0xFFFF;
-    return this->tsl.calculateLux(full, ir);
+    const float lux = this->tsl.calculateLux(full, ir);
+    return isnan(lux) ? -255 : lux;
 }
 
 int SensorsManager::getMoisture() {
     const unsigned short int value = analogRead(MOISTURE);
+    if (value == 0) {
+      return -255;
+    }
     unsigned short int percentage = 100 - (((value - MIN_MOISTURE_VAL) * 100) / (MAX_MOISTURE_VAL - MIN_MOISTURE_VAL));
     /**
      * @brief due to no fixed values for min and max

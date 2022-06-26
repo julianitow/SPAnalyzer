@@ -272,6 +272,7 @@ az_span AzureIot::constructDataPayload() {
     double lum = sensorsManager->getLux();
     int moisture = sensorsManager->getMoisture();
     std::string payloadStr = ",\"data\": {\n \"temp\": \"" + std::to_string(temp) + "\",\"hygro\": \""+ std::to_string(moisture) + "\",\"lum\": \"" + std::to_string(lum) + "\"\n },";
+    Logger.Debug(payloadStr.c_str());
     az_span span = az_span_create_from_str((char*) payloadStr.c_str());
     return span;
 }
