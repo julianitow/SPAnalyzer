@@ -11,13 +11,6 @@
 #include "SerialLogger.h"
 #include "iot_configs.h"
 
-// button
-int lastState = LOW;
-unsigned long pressedTime = 0;
-unsigned long releasedTime = 0;
-const unsigned short int SHORT_PRESS = 1000;
-const unsigned short int LONG_PRESS = 10000;
-
 /** new code **/
 void createBlinkGreenTask(int blinkDelay);
 void restart();
@@ -32,41 +25,6 @@ void BLEOnReadCB(BLECharacteristic* pCharacteristic);
 void BLEOnWriteCB(BLECharacteristic* pCharacteristic);
 MyBLECharacteristicCallbacks* myBLECharacteristicCallbacks = new MyBLECharacteristicCallbacks(BLEOnReadCB, BLEOnWriteCB);
 MyBLEServerCallbacks* serverCallbacks = new MyBLEServerCallbacks();
-
-void manageButtonPress() {
-  int buttonState = digitalRead(BUTTON);
-  if(buttonState == LOW && lastState == HIGH) {
-    Serial.println("**************BUTTON PRESSED*****************");
-    releasedTime = millis();
-    long unsigned int pressedDuration = releasedTime - pressedTime;
-    if (pressedDuration >= LONG_PRESS) {
-      ESPManager::reset();
-      ESPManager::restart();
-    } else if (pressedDuration <= SHORT_PRESS) {
-      ESPManager::restart();
-    }
-    Serial.println(releasedTime - pressedTime);
-  } else if (buttonState == HIGH && lastState == LOW) {
-    pressedTime = millis();
-  }
-  lastState = buttonState;
-  /*if (lastState == HIGH && currentState == LOW) {
-    pressedTime = millis();
-  } else if (lastState == LOW && currentState == HIGH) {
-    releasedTime = millis();
-    long pressDuration = releasedTime - pressedTime;
-    if (pressDuration > RESET_PRESS_TIME) {
-      Logger.Info("RESET MODE ENGAGED");
-      //espManager->reset();
-    } else if (pressDuration > 300 && pressDuration < RESET_PRESS_TIME) {
-      Logger.Debug(std::to_string(currentState).c_str());
-      Logger.Debug(std::to_string(pressDuration).c_str());
-      // espManager->restart();
-    }
-  }
-  lastState = currentState;
-  nbPressed = 0;*/
-}
 
 /**
  * NEW CODE REFACTO
@@ -136,6 +94,7 @@ void setup() {
 
   espManager = new ESPManager();
   ESPManager::setGlobalState(ANALYZER_PAIRING);
+  espManager->controlButton();
   sensorsManager = new SensorsManager();
   wifiManager = WiFiManager::getInstance();
   sensorsManager->startBlink(500);
@@ -179,5 +138,5 @@ void loop() {
       sensorsManager->stopBlink();
     }
   }
-  manageButtonPress();
+  espManager->controlButton();
 }

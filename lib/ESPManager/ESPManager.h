@@ -12,6 +12,9 @@ class ESPManager {
     private:
     static int lastIndex;
     static GlobalState globalState;
+    unsigned long buttonPressedTime = 0;
+    unsigned long buttonReleasedTime = 0;
+    int buttonLastState = LOW;
 
     public:
     ESPManager();
@@ -23,6 +26,7 @@ class ESPManager {
     void saveEEPROM(std::string);
     void readEEPROM(int*, int offset);
     std::string readEEPROM(int, int);
+    void controlButton();
     bool isReady = false;
 };
 

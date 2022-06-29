@@ -49,6 +49,10 @@
 #define MOISTURE 34
 #define BUTTON 35
 
+// Button
+const unsigned short int SHORT_PRESS = 1000;
+const unsigned short int LONG_PRESS = 10000;
+
 // EEPROM 1st case addr
 #define EEPROM_ADDR 0
 

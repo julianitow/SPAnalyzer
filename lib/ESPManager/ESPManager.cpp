@@ -82,3 +82,20 @@ std::string ESPManager::readEEPROM(int offset, int len) {
     data[len] = '\0';
     return std::string(data);
 }
+
+void ESPManager::controlButton() {
+    int buttonState = digitalRead(BUTTON);
+    if(buttonState == LOW && this->buttonLastState == HIGH) {
+        this->buttonReleasedTime = millis();
+        long unsigned int pressedDuration = this->buttonReleasedTime - this->buttonPressedTime;
+        if (pressedDuration >= LONG_PRESS) {
+        ESPManager::reset();
+        ESPManager::restart();
+        } else if (pressedDuration <= SHORT_PRESS) {
+        ESPManager::restart();
+        }
+    } else if (buttonState == HIGH && this->buttonLastState == LOW) {
+        this->buttonPressedTime = millis();
+    }
+    this->buttonLastState = buttonState;
+    }
