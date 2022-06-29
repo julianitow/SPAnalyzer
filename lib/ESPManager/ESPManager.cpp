@@ -39,10 +39,9 @@ void ESPManager::restart() {
 void ESPManager::reset() {
     Logger.Warning("********************SELF DESTRUCT MODE ENGAGED********************");
     delay(500);
-    //const int lastIndex = _ssid.length() + _password.length();
-    for (int i = 0; i < ESPManager::lastIndex; i++) {
+    for (int i = 0; i < EEPROM.length(); i++) {
         EEPROM.write(i, 0);
-        int status = (i / ESPManager::lastIndex * 100);
+        int status = (i / EEPROM.length() * 100);
         std::string statusStr = "********************SOULPOT_ANALYZER 0S Erasing..." + std::to_string(status) + "****************";
         Logger.Warning(statusStr.c_str());
     }

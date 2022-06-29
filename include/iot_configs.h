@@ -6,8 +6,8 @@
 
 // Azure IoT
 #define IOT_CONFIG_IOTHUB_FQDN "fr-analyzers-hub.azure-devices.net"
-#define IOT_CONFIG_DEVICE_ID "ANALYZER_00"
-#define IOT_CONFIG_DEVICE_KEY "Dt80Kcu4h4fQ9fP2Q3iNzHv/d/IWAbqUvfs5SDvCLzI="
+#define IOT_CONFIG_DEVICE_ID "ANALYZER_01"
+#define IOT_CONFIG_DEVICE_KEY "UnldpoNHIAFEl9WKhL7q6PJnpKyKi+Thky1cLDfsR8g="
 
 // When developing for your own Arduino-based platform,
 // please follow the format '(ard;<platform>)'. 
@@ -47,7 +47,7 @@
 #define ONEWIRE 33
 #define RELAY 26
 #define MOISTURE 34
-#define BUTTON 36
+#define BUTTON 35
 
 // EEPROM 1st case addr
 #define EEPROM_ADDR 0

@@ -12,14 +12,11 @@
 #include "iot_configs.h"
 
 // button
-const int buttonBus = 35;
+int lastState = LOW;
 unsigned long pressedTime = 0;
 unsigned long releasedTime = 0;
-int lastState = LOW;
-int currentState;
-int nbPressed = 0;
-const int SHORT_PRESS_TIME = 500;
-const int RESET_PRESS_TIME = 10000;
+const unsigned short int SHORT_PRESS = 1000;
+const unsigned short int LONG_PRESS = 10000;
 
 /** new code **/
 void createBlinkGreenTask(int blinkDelay);
@@ -37,16 +34,30 @@ MyBLECharacteristicCallbacks* myBLECharacteristicCallbacks = new MyBLECharacteri
 MyBLEServerCallbacks* serverCallbacks = new MyBLEServerCallbacks();
 
 void manageButtonPress() {
-  currentState = digitalRead(buttonBus);
-  if (lastState == HIGH && currentState == LOW) {
+  int buttonState = digitalRead(BUTTON);
+  if(buttonState == LOW && lastState == HIGH) {
+    Serial.println("**************BUTTON PRESSED*****************");
+    releasedTime = millis();
+    long unsigned int pressedDuration = releasedTime - pressedTime;
+    if (pressedDuration >= LONG_PRESS) {
+      ESPManager::reset();
+      ESPManager::restart();
+    } else if (pressedDuration <= SHORT_PRESS) {
+      ESPManager::restart();
+    }
+    Serial.println(releasedTime - pressedTime);
+  } else if (buttonState == HIGH && lastState == LOW) {
     pressedTime = millis();
-    nbPressed++;
+  }
+  lastState = buttonState;
+  /*if (lastState == HIGH && currentState == LOW) {
+    pressedTime = millis();
   } else if (lastState == LOW && currentState == HIGH) {
     releasedTime = millis();
     long pressDuration = releasedTime - pressedTime;
-    nbPressed++;
     if (pressDuration > RESET_PRESS_TIME) {
-      espManager->reset();
+      Logger.Info("RESET MODE ENGAGED");
+      //espManager->reset();
     } else if (pressDuration > 300 && pressDuration < RESET_PRESS_TIME) {
       Logger.Debug(std::to_string(currentState).c_str());
       Logger.Debug(std::to_string(pressDuration).c_str());
@@ -54,7 +65,7 @@ void manageButtonPress() {
     }
   }
   lastState = currentState;
-  nbPressed = 0;
+  nbPressed = 0;*/
 }
 
 /**
@@ -149,33 +160,6 @@ void setup() {
     }
   }
   bleManager->startAdvertising();
-  /*pinMode(buttonBus, INPUT_PULLUP);
-  createBlinkGreenTask(500);
-
-  // TMP
-  //_ssid = "uifeedu75";
-  //_password = "mandalorianBGdu75";
-  // END TMP
-  if (_ssid.length() > 0 && _password.length() > 0) {
-    Logger.Info("Already config, with:");
-    Logger.Info(_ssid.c_str());
-    Logger.Info(_password.c_str());
-    wifiSetup(_ssid, _password);
-    if (WiFi.status() != WL_CONNECTED) {
-      Logger.Error("WIFI ERROR, switching to bluetooth mode");
-      bluetoothSetup();
-    } else {
-        //connexion à azure
-        Logger.Info("Azure connection...");
-        establishConnection();
-        sensors.initialiseSensors();
-        stopGreenBlink();
-    }
-  } else {
-    Logger.Warning("Configuration mode detected");
-    Logger.Info("Waiting for a client to notify...");
-    bluetoothSetup();
-  }*/
 }
 
 void loop() {

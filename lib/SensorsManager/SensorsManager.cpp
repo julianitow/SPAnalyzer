@@ -33,11 +33,11 @@ void SensorsManager::sprink(bool status, int val) {
   if (status) {
     Logger.Debug("SPRINK");
     digitalWrite(RELAY, HIGH);
-    while (this->getMoisture() < val) {
+    /*while (this->getMoisture() < val) {
       Logger.Info("Sprinkling...");
       delay(500);
-    }
-    this->sprink(false, val);
+    }*/
+    //this->sprink(false, val);
   } else {
     Logger.Debug("STOP SPRINK");
     digitalWrite(RELAY, LOW);
