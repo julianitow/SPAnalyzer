@@ -39,8 +39,8 @@
 #define DESC_UUID "544bd464-8388-42aa-99cd-81cf6e6042d7"
 
 // Moisture
-#define MIN_MOISTURE_VAL 1720
-#define MAX_MOISTURE_VAL 2115
+#define MIN_MOISTURE_VAL 1650
+#define MAX_MOISTURE_VAL 2060// 2115
 
 // Sensors buses
 #define GREENLED 23

@@ -58,9 +58,10 @@ int SensorsManager::getMoisture() {
     if (value == 0) {
       return -255;
     }
-    unsigned short int percentage = 100 - (((value - MIN_MOISTURE_VAL) * 100) / (MAX_MOISTURE_VAL - MIN_MOISTURE_VAL));
+    unsigned short int percentage =
+      100 - (((value - MIN_MOISTURE_VAL) * 100) / (MAX_MOISTURE_VAL - MIN_MOISTURE_VAL));
     /**
-     * @brief due to no fixed values for min and max
+     * @brief due to no fixed values returned by the sensor
      * the percentage could be above 100 by 1 or 2
      */
     if (percentage > 100) {
