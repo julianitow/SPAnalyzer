@@ -33,11 +33,14 @@ void SensorsManager::sprink(bool status, int val) {
   if (status) {
     Logger.Debug("SPRINK");
     digitalWrite(RELAY, HIGH);
-    /*while (this->getMoisture() < val) {
+    while (this->getMoisture() < val) {
       Logger.Info("Sprinkling...");
-      delay(500);
-    }*/
-    //this->sprink(false, val);
+      delay(SPRINK_DELAY);
+      digitalWrite(RELAY, LOW);
+      delay(SPRINK_DELAY);
+      digitalWrite(RELAY, HIGH);
+    }
+    digitalWrite(RELAY, LOW);
   } else {
     Logger.Debug("STOP SPRINK");
     digitalWrite(RELAY, LOW);
@@ -63,10 +66,10 @@ int SensorsManager::getMoisture() {
     /**
      * @brief due to no fixed values returned by the sensor
      * the percentage could be above 100 by 1 or 2
-     */
+     *
     if (percentage > 100) {
       percentage = 100;
-    }
+    }*/
     return percentage;
 }
 

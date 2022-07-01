@@ -89,10 +89,10 @@ void ESPManager::controlButton() {
         this->buttonReleasedTime = millis();
         long unsigned int pressedDuration = this->buttonReleasedTime - this->buttonPressedTime;
         if (pressedDuration >= LONG_PRESS) {
-        ESPManager::reset();
-        ESPManager::restart();
-        } else if (pressedDuration <= SHORT_PRESS) {
-        ESPManager::restart();
+            ESPManager::reset();
+            ESPManager::restart();
+        } else if (pressedDuration > MIN_PRESS && pressedDuration <= SHORT_PRESS) {
+            ESPManager::restart();
         }
     } else if (buttonState == HIGH && this->buttonLastState == LOW) {
         this->buttonPressedTime = millis();

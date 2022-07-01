@@ -40,7 +40,8 @@
 
 // Moisture
 #define MIN_MOISTURE_VAL 1650
-#define MAX_MOISTURE_VAL 2060// 2115
+#define MAX_MOISTURE_VAL 2090// 2115
+#define SPRINK_DELAY 2500
 
 // Sensors buses
 #define GREENLED 23
@@ -52,6 +53,7 @@
 // Button
 const unsigned short int SHORT_PRESS = 1000;
 const unsigned short int LONG_PRESS = 10000;
+const unsigned short int MIN_PRESS = 100;
 
 // EEPROM 1st case addr
 #define EEPROM_ADDR 0
