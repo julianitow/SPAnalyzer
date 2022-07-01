@@ -31,13 +31,13 @@ MyBLEServerCallbacks* serverCallbacks = new MyBLEServerCallbacks();
  */
 
 void BLEOnReadCB(BLECharacteristic* pCharacteristic) {
-    Serial.println("onRead triggered");
+    Logger.Info("BLE onRead callback triggered");
     int state = ESPManager::getGlobalState();
     pCharacteristic->setValue(state);
  }
 
 void BLEOnWriteCB(BLECharacteristic* pCharacteristic) {
-    Logger.Info("received: ");
+    Logger.Info("BLE Write callback received: ");
     Logger.Info(pCharacteristic->getValue().c_str());
     std::string value = pCharacteristic->getValue();
     
